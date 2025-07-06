@@ -1,0 +1,12 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+- There are three fundamental levels of abstraction for UI components
+  - domain-agnostic design system components (atoms, molecules) are placed in the ui folder
+  - feature-specific components (organisms) are placed in the features folder
+  - pages are composed of features in the pages folder
+- Astro files should NOT be used for components, only routes, and therefore are only used in the pages folder. We do this to avoid too much lock-in.
+- we try to scope independent features in their own feature folder. So the folder at `src/features` only has folders as direct children which each represent specific features.
+- import from features and ui from the base url like `import {} from "src/features/...";`

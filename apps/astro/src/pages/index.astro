@@ -1,0 +1,14 @@
+---
+import { CartSummaryIsland } from "src/islands/cart/cart-summary.island";
+import { fetchIslandData } from "src/ui/islands/island-data";
+import Document from "./_document.astro";
+
+await fetchIslandData(CartSummaryIsland);
+
+---
+
+<Document>
+	<main>
+		<CartSummaryIsland />
+	</main>
+</Document>

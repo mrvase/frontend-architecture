@@ -1,0 +1,7 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+- use bun as package manager
+- use Astro, React, and Tailwind for a frontend project

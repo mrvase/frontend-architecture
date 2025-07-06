@@ -1,0 +1,25 @@
+{
+  "name": "@nanokit/context",
+  "version": "1.0.0",
+  "description": "",
+  "type": "module",
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit"
+  },
+  "exports": {
+    ".": {
+      "workerd": "./src/context-node.ts",
+      "node": "./src/context-node.ts",
+      "types": "./src/types.d.ts",
+      "default": "./src/context-browser.ts"
+    }
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@types/node": "22.3.0"
+  }
+}

@@ -1,0 +1,7 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+- always use explicit types rather than `any`. If the type is not known, use `unknown`.
+- for React components, the prop types should be inlined

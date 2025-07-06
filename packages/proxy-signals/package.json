@@ -1,0 +1,38 @@
+{
+  "name": "@nanokit/proxy-signals",
+  "version": "1.0.0",
+  "description": "",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./react": "./src/react.tsx"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {},
+  "devDependencies": {
+    "@nanokit/proxy": "workspace:*",
+    "@nanokit/proxy-patterns": "workspace:*",
+    "@tanstack/react-query": "5.62.3",
+    "@testing-library/dom": "10.4.0",
+    "@testing-library/jest-dom": "6.6.3",
+    "@testing-library/react": "16.0.1",
+    "@types/react": "18.3.14",
+    "@types/react-dom": "18.3.3",
+    "@vitejs/plugin-react": "4.3.4",
+    "jsdom": "25.0.1",
+    "react": "18.3.1",
+    "react-dom": "18.3.1"
+  },
+  "peerDependencies": {
+    "@nanokit/proxy": "workspace:*",
+    "@nanokit/proxy-patterns": "workspace:*",
+    "@tanstack/react-query": "5.62.3",
+    "react": "18.3.1",
+    "react-dom": "18.3.1"
+  }
+}

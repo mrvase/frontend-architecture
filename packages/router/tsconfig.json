@@ -1,0 +1,5 @@
+{
+  "extends": "config/tsconfigs/react-library.json",
+  "include": [".", "../field/types.ts", "../field/constants.ts"],
+  "exclude": ["dist", "build", "node_modules"]
+}
