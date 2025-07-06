@@ -1,11 +1,12 @@
 import { createSignalCache } from "@nanokit/proxy-signals";
 import { catalogQueries } from "../application/catalog-queries";
 import {
-  Proxy,
+  Inject,
+  proxy,
   type HandlerNode,
   type InjectableRecord,
-  type InferProxy,
-} from "src/core/proxy";
+  type ToProxy,
+} from "@nanokit/proxy";
 
 const cache = createSignalCache();
 
@@ -14,7 +15,7 @@ const injectables = {} as const satisfies InjectableRecord;
 type LocalInjectables = typeof injectables;
 
 declare module "@nanokit/proxy" {
-  interface Inject extends LocalInjectables {}
+  interface Injectables extends LocalInjectables {}
 }
 
 const domainEvents = {
@@ -24,14 +25,14 @@ const domainEvents = {
 export const handlers = {
   catalogQueries: [catalogQueries, () => {}],
   catalogIntegrationQueries: {},
-  [Proxy.private]: [injectables, domainEvents],
-  [Proxy.cache]: cache,
+  [Inject.private]: [injectables, domainEvents],
+  [Inject.cache]: cache,
 } as const satisfies HandlerNode;
 
-type ProxyHandlers = InferProxy<typeof handlers>;
+type ProxyHandlers = ToProxy<typeof handlers, never>;
 
 declare module "@nanokit/proxy" {
-  interface Proxy extends ProxyHandlers {}
+  interface Handlers extends ProxyHandlers {}
 }
 
 // integration events others have defined (in /integration)
@@ -50,20 +51,20 @@ export type ConsumedInterceptors = {
 // this is imported by other modules
 export const integrationEvents = {
   catalogIntegrationEvents: {},
-  [Proxy.private]: handlers,
-  [Proxy.cache]: cache,
+  [Inject.private]: handlers,
+  [Inject.cache]: cache,
 } as const satisfies HandlerNode;
 
 // this is imported by another module
 export const cartInterceptors = {
   cartIntegrationQueries: {},
-  [Proxy.private]: handlers,
-  [Proxy.cache]: cache,
+  [Inject.private]: handlers,
+  [Inject.cache]: cache,
 } as const satisfies HandlerNode;
 
 // this is imported by another module
 export const checkoutInterceptors = {
   checkoutIntegrationQueries: {},
-  [Proxy.private]: handlers,
-  [Proxy.cache]: cache,
+  [Inject.private]: handlers,
+  [Inject.cache]: cache,
 } as const satisfies HandlerNode;

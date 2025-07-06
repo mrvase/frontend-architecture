@@ -1,79 +1,74 @@
-import { defaultCache } from "./cache";
-import { getRequestContext, trackRequestContext, type RequestContext } from "./context";
+import type { ProxyRequestCache } from "./cache";
 import {
-  createHandlerStore,
-  createInterceptorStore,
-  globalHandlers,
-  globalInterceptors,
+  getRequestContext,
+  trackRequestContext,
+  type RequestContext,
+} from "./context";
+import {
+  getFirstHandler,
+  getHandlers,
+  type HandlerFn,
+  type HandlerNode,
 } from "./handlers";
 import { getOptionsContext } from "./options";
 import { getSyncTransactionContext, maybeTransaction } from "./transaction";
-import {
-  Cache,
-  type HandlerFn,
-  type HandlerStore,
-  type InterceptorStore,
-  type ProxyRequest,
-  type ProxyRequestCache,
-  type RequestType,
-} from "./types";
+import { type ProxyRequest, type RequestType } from "./request";
 
 const invoke = <T>(context: RequestContext<T>) => {
-  const handlerFns = context.handlers.get(context.request, Boolean(context.parentRequestId));
-
-  const interceptorFns = context.interceptors.get(context.request);
-
-  const interceptPayload = (payload: unknown[]) => {
-    if (context.type === "mutate" && interceptorFns.length) {
-      let [first, ...rest] = payload;
-      first = interceptorFns.reduce((acc, cur) => cur(acc, ...rest), first);
-      return [first, ...rest];
-    }
-    return payload;
-  };
-
-  const interceptResult = (result: T, payload: unknown[]): T => {
-    if (context.type === "query" && interceptorFns.length) {
-      return interceptorFns.reduce((acc, cur) => cur(acc, ...payload), result);
-    }
-    return result;
-  };
-
-  const invokeParallel = () => {
-    return trackRequestContext(context, () => {
-      const payload = interceptPayload(context.request.payload);
-      return handlerFns.map((fn) => interceptResult(fn(...payload), payload));
-    });
-  };
-
-  const invokeFirst = (fn: HandlerFn<T>) => {
-    return trackRequestContext(context, () => {
-      const payload = interceptPayload(context.request.payload);
-
-      return interceptResult(fn(...interceptPayload(context.request.payload)), payload);
-    });
-  };
+  const handlerFns = getHandlers(
+    context.request,
+    context.handlers,
+    Boolean(context.parentRequestId)
+  );
 
   if (context.type === "dispatch") {
-    return context.cache.dispatch(context.request, invokeParallel);
+    // group by cache
+    const grouped = handlerFns.reduce((acc, fn) => {
+      const cache = fn.cache;
+      let current = acc.get(cache);
+      if (!current) {
+        current = [];
+        acc.set(cache, current);
+      }
+      current.push(fn.fn);
+      return acc;
+    }, new Map<ProxyRequestCache, HandlerFn<T>[]>());
+
+    const promises: Promise<void>[] = [];
+
+    for (const [cache, fns] of grouped) {
+      promises.push(
+        cache.dispatch(context.request, () =>
+          trackRequestContext(context, () => {
+            return fns.map((fn) => fn(...context.request.payload));
+          })
+        )
+      );
+    }
+
+    return Promise.all(promises).then(() => {});
   }
 
   const handlerFn = handlerFns[0];
 
   if (!handlerFn) {
     throw new Error(
-      `No handlers found for: ${context.request.type.map((el) => el.toString()).join(".")}`
+      `No handlers found for: ${context.request.type
+        .map((el) => el.toString())
+        .join(".")}`
     );
   }
 
   if (context.type === "query" && context.options?.noCache) {
     // cache.subscribe(context.request);
-    return invokeFirst(handlerFn);
+    return trackRequestContext(context, () =>
+      handlerFn.fn(...context.request.payload)
+    );
   }
 
-  const cache = handlerFn[Cache] ?? context.cache;
-
-  return cache[context.type](context.request, () => invokeFirst(handlerFn));
+  return handlerFn.cache[context.type](context.request, () =>
+    trackRequestContext(context, () => handlerFn.fn(...context.request.payload))
+  );
 };
 
 export type RequestLog = {
@@ -97,13 +92,7 @@ export const registerRequestLogListener = (listener: RequestLogListener) => {
   };
 };
 
-export const createInvokers = (
-  setup: {
-    handlers?: HandlerStore;
-    interceptors?: InterceptorStore;
-    cache?: ProxyRequestCache;
-  } = {}
-) => {
+export const createInvokers = (handlersFromArg?: HandlerNode) => {
   const getNextRequestContext = <T>({
     type,
     request,
@@ -116,13 +105,9 @@ export const createInvokers = (
     const transaction = context?.transaction ?? getSyncTransactionContext();
     const options = { ...context?.options, ...getOptionsContext() };
 
-    const handlers = createHandlerStore(context?.handlers, setup.handlers ?? globalHandlers);
-    const interceptors = createInterceptorStore(
-      context?.interceptors,
-      setup.interceptors ?? globalInterceptors
+    const handlers = [context?.handlers, handlersFromArg].filter(
+      (el) => el !== undefined
     );
-
-    const cache = context?.cache ?? setup.cache ?? defaultCache;
 
     return {
       type,
@@ -130,8 +115,6 @@ export const createInvokers = (
       requestId: Math.random().toString(16).slice(2, 10),
       parentRequestId: context?.requestId ?? null,
       handlers,
-      interceptors,
-      cache,
       transaction,
       options,
     };
@@ -165,14 +148,14 @@ export const createInvokers = (
       parentRequestId: context.parentRequestId,
     });
 
-    const dispatchResult = maybeTransaction(() => invoke(context), request) as Promise<void>;
+    const dispatchResult = maybeTransaction(() => invoke(context), request);
 
     if (context.transaction && dispatchResult instanceof Promise) {
       context.transaction.promises.push(dispatchResult);
     }
   };
 
-  const redispatch = <T>(prefix: string | symbol) => {
+  const redispatch = <T>(prefix: string) => {
     const request = getRequestContext()?.request;
 
     if (!request) {
@@ -187,20 +170,23 @@ export const createInvokers = (
     return dispatch(newRequest);
   };
 
-  const invalidate = (...type: [string | symbol, ...(string | symbol)[]] | [ProxyRequest]) => {
-    const cache = getRequestContext()?.cache ?? setup.cache ?? defaultCache;
+  const invalidate = (...type: [string, ...string[]] | [ProxyRequest]) => {
+    const handlers = getRequestContext()?.handlers ?? handlersFromArg ?? [];
 
     if (typeof type[0] === "object") {
-      cache.invalidate(type[0]);
+      const { cache } = getFirstHandler(type[0].type, handlers);
+      cache?.invalidate(type[0]);
     } else {
-      cache.invalidate(type as (string | symbol)[]);
+      const { cache } = getFirstHandler(type as string[], handlers);
+      cache?.invalidate(type as string[]);
     }
   };
 
   const cache = <T>(request: ProxyRequest<T>, value: T) => {
-    const cache = getRequestContext()?.cache ?? setup.cache ?? defaultCache;
+    const handlers = getRequestContext()?.handlers ?? handlersFromArg ?? [];
+    const { cache } = getFirstHandler(request.type, handlers);
 
-    cache.set(request, value);
+    cache?.set(request, value);
   };
 
   return { query, mutate, dispatch, redispatch, invalidate, cache };

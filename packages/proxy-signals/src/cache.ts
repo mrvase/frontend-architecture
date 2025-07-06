@@ -1,5 +1,8 @@
 import { createProxyRequest, type ProxyRequestCache } from "@nanokit/proxy";
-import { getRequestContext, getTransactionContext } from "@nanokit/proxy/internal";
+import {
+  getRequestContext,
+  getTransactionContext,
+} from "@nanokit/proxy/internal";
 import { stabilize } from "./signals/signals";
 import { ReactiveExtended } from "./signals/signals-extended";
 import { deepEquals, getKey } from "./utils";
@@ -35,7 +38,9 @@ export const createSignalCache = () => {
       }
 
       const parentSignal =
-        context && !isSync ? cachedRequests.get(getKey(context.request)) : undefined;
+        context && !isSync
+          ? cachedRequests.get(getKey(context.request))
+          : undefined;
 
       return cached.get(parentSignal);
     },

@@ -1,5 +1,5 @@
 {
-  "name": "@nanokit/proxy-old",
+  "name": "@nanokit/proxy",
   "version": "1.0.0",
   "description": "",
   "type": "module",
@@ -15,7 +15,7 @@
   "license": "ISC",
   "dependencies": {},
   "devDependencies": {
-    "vite": "6.0.7",
-    "vitest": "2.1.8"
+    "vite": "6.3.5",
+    "vitest": "3.2.3"
   }
 }

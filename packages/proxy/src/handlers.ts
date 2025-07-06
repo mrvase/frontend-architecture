@@ -1,217 +1,194 @@
-import { InjectProxyPayload, ProxyCallback } from "./proxy";
-import { Cache } from "./types";
-import type {
-  HandlerAccumulator,
-  HandlerFn,
-  HandlerRecord,
-  HandlerStore,
-  InterceptorFn,
-  InterceptorStore,
-  ProxyRequest,
-  ProxyRequestCache,
-} from "./types";
+import { defaultCache, type ProxyRequestCache } from "./cache";
+import type { ProxyRequest } from "./request";
 
-export const globalHandlers = createHandlerStore();
-export const globalInterceptors = createInterceptorStore();
-
-const isNonProxyFunction = (fn: unknown): fn is Function => {
-  return typeof fn === "function" && !(fn as any)[InjectProxyPayload];
+export const ProxySymbol: {
+  readonly private: unique symbol;
+  readonly cache: unique symbol;
+  readonly onInject: unique symbol;
+  readonly unwrap: unique symbol;
+} = {
+  private: Symbol("private") as typeof ProxySymbol.private,
+  cache: Symbol("cache") as typeof ProxySymbol.cache,
+  onInject: Symbol("onInject") as typeof ProxySymbol.onInject,
+  unwrap: Symbol("unwrap") as typeof ProxySymbol.unwrap,
 };
 
-// register query/command handlers => should only be used
-// register injectable => should only be used within an existing query/command handler
-// register event handlers
+export type HandlerFn<T = any> = (...args: any[]) => T;
+export type RequestFn<T = any> = (request: ProxyRequest) => T;
 
-export function createHandlerStore(...parents: (HandlerStore | undefined)[]): HandlerStore {
-  const handlersPublic = new Set<HandlerRecord>();
-  const allPublic = new Set<Set<HandlerRecord>>();
-  allPublic.add(handlersPublic);
+type Nested<T> = T | Nested<T>[];
 
-  const handlersPrivate = new Set<HandlerRecord>();
-  const allPrivate = new Set<Set<HandlerRecord>>();
-  allPrivate.add(handlersPrivate);
+export type InjectableRecord = {
+  [key: string]: unknown;
+} & {
+  [ProxySymbol.private]?: InjectableRecord;
+};
 
-  parents.forEach((store) => {
-    if (store) {
-      store.listPublic().forEach((set) => allPublic.add(set));
-      store.listPrivate().forEach((set) => allPrivate.add(set));
+export type HandlerRecord = {
+  [key: string]: HandlerNode;
+} & {
+  [ProxySymbol.private]?: HandlerNode | InjectableRecord;
+  [ProxySymbol.cache]?: ProxyRequestCache;
+  [ProxySymbol.onInject]?: (payload: unknown) => unknown;
+  [ProxySymbol.unwrap]?: (request: ProxyRequest) => unknown;
+};
+
+export type HandlerNode = Nested<HandlerFn> | Nested<HandlerRecord | RequestFn>;
+
+const isOrdinaryFunction = (fn: unknown): fn is Function => {
+  return typeof fn === "function" && !(fn as any)[ProxySymbol.onInject];
+};
+
+const isHandlerRecord = (record: unknown): record is HandlerRecord => {
+  return (
+    typeof record === "object" && record !== null && !Array.isArray(record)
+  );
+};
+
+export const getHandlers = <T>(
+  request: ProxyRequest<T>,
+  handlers: HandlerNode,
+  privateScope?: boolean
+): {
+  fn: HandlerFn<T>;
+  cache: ProxyRequestCache;
+}[] => {
+  const fns: {
+    fn: HandlerFn<T>;
+    cache: ProxyRequestCache;
+  }[] = [];
+
+  const getFromHandlers = (
+    handlers: HandlerNode,
+    path: string[],
+    cache: ProxyRequestCache,
+    parent?: HandlerRecord
+  ) => {
+    if (isOrdinaryFunction(handlers)) {
+      const fn = handlers.bind(parent);
+      if (path.length === 0) {
+        fns.push({
+          fn,
+          cache,
+        });
+      } else {
+        // topic listener
+        fns.push({
+          fn: () => fn(request) as T,
+          cache,
+        });
+      }
+      return;
     }
-  });
 
-  const registerPublic = (...records: HandlerRecord[]) => {
-    records.forEach((object) => handlersPublic.add(object));
-
-    return () => {
-      records.forEach((object) => handlersPublic.delete(object));
-    };
-  };
-
-  const registerPrivate = (...records: HandlerRecord[]) => {
-    records.forEach((object) => handlersPrivate.add(object));
-
-    return () => {
-      records.forEach((object) => handlersPrivate.delete(object));
-    };
-  };
-
-  const registerPrivateGlobal = (...records: HandlerRecord[]) => {
-    // we only need to register to all root parents in order to have maximum reach
-    if (parents.length === 0) {
-      return registerPrivate(...records);
+    if (Array.isArray(handlers)) {
+      handlers.forEach((handler) =>
+        getFromHandlers(handler, path, cache, parent)
+      );
+      return;
     }
 
-    const cleanups = [...parents.flatMap((store) => store?.registerPrivateGlobal(...records))];
-
-    return () => {
-      cleanups.forEach((fn) => fn?.());
-    };
-  };
-
-  const get = <T>(request: ProxyRequest<T>, privateScope?: boolean) => {
-    const fns: (HandlerFn<T> & { [Cache]?: ProxyRequestCache })[] = [];
-
-    const getFromHandlers = (handlers: Set<HandlerRecord>) => {
-      handlers.forEach((initialRecord) => {
-        // `get` is used by `proxy`, while `first` is used by `inject`.
-        // A proxy intended as an injectable will have the ProxyCallback property.
-        // If it itself is requested via a proxy (that is, via `get`),
-        // it should deal with the record directly.
-        let record = initialRecord as HandlerAccumulator;
-
-        const path = [...request.type];
-        const [last] = path.splice(path.length - 1, 1);
-
-        for (const key of path) {
-          const next = typeof record === "object" ? record[key] : undefined;
-
-          if (!next) {
-            return;
-          }
-
-          if (isNonProxyFunction(next)) {
-            // topic listener
-            const fn = next.bind(record);
-            fns.push(() => fn(request) as T);
-
-            return;
-          }
-
-          const proxyCallback = next[ProxyCallback];
-          if (proxyCallback) {
-            fns.push(() => proxyCallback(request));
-            return;
-          }
-
-          record = next;
-        }
-
-        if (!isNonProxyFunction(record) && typeof record[last] === "function") {
-          const fn = record[last].bind(record);
-          if (initialRecord[Cache]) {
-            Object.assign(fn, { [Cache]: initialRecord[Cache] });
-          }
-          fns.push(fn as HandlerFn<T>);
-        }
+    const callback = handlers[ProxySymbol.unwrap];
+    if (callback) {
+      fns.push({
+        fn: () => callback({ ...request, type: path }) as T,
+        cache,
       });
-    };
-
-    for (const handlers of allPublic) {
-      getFromHandlers(handlers);
+      return;
     }
 
-    if (privateScope) {
-      for (const handlers of allPrivate) {
-        getFromHandlers(handlers);
-      }
-    }
+    if (isHandlerRecord(handlers)) {
+      const nextCache = handlers[ProxySymbol.cache] ?? cache;
 
-    return fns;
-  };
-
-  const first = (path: (string | symbol)[]) => {
-    const firstFromHandlers = (handlers: Set<HandlerRecord>) => {
-      for (const record of handlers) {
-        const result = path.reduce((acc: HandlerRecord, key) => acc?.[key] as any, record);
-
-        if (result) {
-          return result as HandlerAccumulator;
-        }
-      }
-    };
-
-    for (const handlers of allPublic) {
-      const result = firstFromHandlers(handlers);
-
-      if (result) {
-        return result;
-      }
-    }
-
-    for (const handlers of allPrivate) {
-      const result = firstFromHandlers(handlers);
-
-      if (result) {
-        return result;
-      }
-    }
-  };
-
-  return {
-    register: registerPublic,
-    registerPublic,
-    registerPrivate,
-    registerPrivateGlobal,
-    get,
-    listPublic: () => allPublic,
-    listPrivate: () => allPrivate,
-    first,
-  };
-}
-
-export function createInterceptorStore(
-  ...parents: (InterceptorStore | undefined)[]
-): InterceptorStore {
-  const interceptors = new Set<HandlerRecord>();
-  const all = new Set<Set<HandlerRecord>>();
-  all.add(interceptors);
-  parents.forEach((set) => {
-    if (set) {
-      set.list().forEach((record) => all.add(record));
-    }
-  });
-
-  const register = (...records: HandlerRecord[]) => {
-    records.forEach((object) => interceptors.add(object));
-
-    return () => {
-      records.forEach((object) => interceptors.delete(object));
-    };
-  };
-
-  const get = <T>(request: ProxyRequest<T>) => {
-    const fns: InterceptorFn[] = [];
-
-    const getFromHandlers = (handlers: Set<HandlerRecord>) => {
-      handlers.forEach((record) => {
-        const fn = request.type.reduce(
-          (acc, key) => (typeof acc === "object" ? acc[key] : undefined),
-          record as HandlerAccumulator | undefined
+      if (handlers[ProxySymbol.private] && privateScope) {
+        getFromHandlers(
+          handlers[ProxySymbol.private] as HandlerNode,
+          path,
+          nextCache,
+          handlers
         );
+      }
 
-        if (typeof fn === "function") {
-          fns.push(fn as InterceptorFn);
+      const [first, ...rest] = path;
+      const next = handlers[first];
+
+      if (!next) {
+        return;
+      }
+
+      getFromHandlers(next, rest, nextCache, handlers);
+    }
+  };
+
+  getFromHandlers(handlers, request.type, defaultCache);
+
+  return fns;
+};
+
+export const getFirstHandler = <T>(
+  path: string[],
+  handlers: HandlerNode
+): {
+  result: unknown | undefined;
+  cache: ProxyRequestCache;
+} => {
+  const getFromHandlers = (
+    handlers: HandlerNode,
+    path: string[],
+    cache: ProxyRequestCache,
+    parent?: HandlerRecord
+  ): {
+    result: unknown | undefined;
+    cache: ProxyRequestCache;
+  } => {
+    if (path.length === 0) {
+      return { result: handlers, cache };
+    }
+
+    if (Array.isArray(handlers)) {
+      for (const handler of handlers) {
+        const result = getFromHandlers(handler, path, cache, parent);
+        if (result.result) {
+          return result;
         }
-      });
+      }
+    }
+
+    if (isHandlerRecord(handlers)) {
+      const nextCache = handlers[ProxySymbol.cache] ?? cache;
+
+      if (handlers[ProxySymbol.private]) {
+        const result = getFromHandlers(
+          handlers[ProxySymbol.private] as HandlerNode,
+          path,
+          nextCache,
+          handlers
+        );
+        if (result.result !== undefined) {
+          return result;
+        }
+      }
+
+      const [first, ...rest] = path;
+      const next = handlers[first];
+
+      if (next === undefined) {
+        return {
+          result: undefined,
+          cache: nextCache,
+        };
+      }
+
+      const result = getFromHandlers(next, rest, nextCache, handlers);
+
+      return result;
+    }
+
+    return {
+      result: undefined,
+      cache,
     };
-
-    all.forEach(getFromHandlers);
-
-    return fns;
   };
 
-  return {
-    register,
-    get,
-    list: () => all,
-  };
-}
+  return getFromHandlers(handlers, path, defaultCache);
+};

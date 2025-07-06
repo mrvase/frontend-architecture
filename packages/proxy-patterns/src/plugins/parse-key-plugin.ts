@@ -1,20 +1,32 @@
-import { InjectProxyPayload, type ProxyPayload } from "@nanokit/proxy/internal";
-import { type Repository } from "../repository";
+import type { ProxyPayload } from "@nanokit/proxy/internal";
+import type { Repository } from "../repository";
 import { defaultPlugin } from "./default";
+import { ProxySymbol } from "@nanokit/proxy";
 
-type InferRepositoryValue<T extends Repository<any, any>> =
-  ReturnType<T["values"]> extends Iterator<infer V> ? V : never;
+type InferRepositoryValue<T extends Repository<any, any>> = ReturnType<
+  T["values"]
+> extends Iterator<infer V>
+  ? V
+  : never;
 
-export type ParsedKeyRepository<TKey, TValue, T extends Repository<any, any>> = Pick<
-  T,
-  typeof Symbol.toStringTag | "clear" | "size" | "values"
-> & {
+export type ParsedKeyRepository<
+  TKey,
+  TValue,
+  T extends Repository<any, any>
+> = Pick<T, typeof Symbol.toStringTag | "clear" | "size" | "values"> & {
   get(key: TKey): ReturnType<T["get"]>;
   has(key: TKey): boolean;
-  set(key: TKey, value: Parameters<T["set"]>[1]): ParsedKeyRepository<TKey, TValue, T>;
+  set(
+    key: TKey,
+    value: Parameters<T["set"]>[1]
+  ): ParsedKeyRepository<TKey, TValue, T>;
   delete(key: TKey): boolean;
   forEach(
-    callbackfn: (value: TValue, key: TKey, map: ParsedKeyRepository<TKey, TValue, T>) => void,
+    callbackfn: (
+      value: TValue,
+      key: TKey,
+      map: ParsedKeyRepository<TKey, TValue, T>
+    ) => void,
     thisArg?: any
   ): void;
   keys(): MapIterator<TKey>;
@@ -72,8 +84,8 @@ export const parseKeyPlugin = <TKey, TKeySerialized extends string>(options: {
       [Symbol.iterator]() {
         return this.entries();
       },
-      [InjectProxyPayload]<T>(payload: ProxyPayload<T>) {
-        return create(map[InjectProxyPayload]?.(payload) ?? map);
+      [ProxySymbol.onInject]<T>(payload: ProxyPayload<T>) {
+        return create(map[ProxySymbol.onInject]?.(payload) ?? map);
       },
     } satisfies ParsedKeyRepository<TKey, InferRepositoryValue<T>, T>;
   };

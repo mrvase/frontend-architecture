@@ -1,33 +1,84 @@
-import { getRequestContext, addRequestContext, type RequestContext } from "./context";
-import { Cache, type HandlerRecord, type ProxyRequest, type ProxyEvent } from "./types";
+import type { ProxyRequestCache } from "./cache";
+import {
+  getRequestContext,
+  addRequestContext,
+  type RequestContext,
+} from "./context";
+import {
+  getFirstHandler,
+  ProxySymbol,
+  type HandlerFn,
+  type HandlerNode,
+  type HandlerRecord,
+  type InjectableRecord,
+  type RequestFn,
+} from "./handlers";
+import { type ProxyRequest, type ProxyEvent } from "./request";
 
 type Prettify<T> = {
   [K in keyof T]: T[K];
 } & {};
 
-export type ProxyClient<T> =
-  T extends Record<string | symbol, unknown>
-    ? {
-        [K in keyof T as K extends typeof Cache ? never : K]: T[K] extends (...args: any) => infer R
-          ? (...args: Parameters<T[K]>) => R extends (arg: any) => any
-              ? ProxyEvent<
-                  Prettify<
-                    {
-                      type: K;
-                    } & Parameters<T[K]>[0]
-                  >
-                >
-              : ProxyRequest<ReturnType<T[K]>>
-          : ProxyClient<T[K]>;
-      }
-    : T;
+type UnionToIntersection<U> = (U extends any ? (x: U) => void : never) extends (
+  x: infer I
+) => void
+  ? I
+  : never;
 
-export interface Proxy extends Record<string | symbol, unknown> {}
-export interface Inject extends Record<string | symbol, unknown> {}
+type Flatten<T> = T extends any[] ? Flatten<T[number]> : T;
 
-export type ProxyPayload<TValue = unknown, TCachedValue = unknown> = {
+type UnionToProxy<
+  T,
+  K extends string
+> = UnionToIntersection<T> extends HandlerNode
+  ? ToProxy<UnionToIntersection<T>, K>
+  : {};
+
+type ToProxyFn<K extends string, T extends HandlerFn> = T extends (
+  ...args: any
+) => infer R
+  ? (...args: Parameters<T>) => R extends (arg: any) => any
+      ? ProxyEvent<
+          Prettify<
+            {
+              type: K;
+            } & Parameters<T>[0]
+          >
+        >
+      : ProxyRequest<ReturnType<T>>
+  : never;
+
+export type ToProxy<
+  T extends HandlerNode,
+  K extends string
+> = RequestFn extends T
+  ? {}
+  : T extends HandlerFn
+  ? ToProxyFn<K, T>
+  : T extends HandlerRecord
+  ? {
+      -readonly [Key in keyof T as Key extends
+        | typeof ProxySymbol.private
+        | typeof ProxySymbol.cache
+        ? never
+        : T[Key] extends []
+        ? never
+        : Key]: ToProxy<T[Key], Key extends string ? Key : never>;
+    }
+  : T extends []
+  ? {}
+  : T extends [HandlerFn, ...HandlerFn[]][]
+  ? T[0] // we assume every handler is equivalent
+  : T extends (HandlerRecord | RequestFn)[]
+  ? UnionToProxy<Flatten<Exclude<T[number], Function>>, K> // we assume every function is a RequestFn
+  : never;
+
+export interface Handlers extends HandlerRecord {}
+export interface Injectables extends InjectableRecord {}
+
+export type ProxyPayload<TValue = unknown> = {
   path: (string | symbol)[];
-  context: RequestContext<TValue, TCachedValue> | undefined;
+  context: RequestContext<TValue> | undefined;
   isInjected: boolean;
 };
 
@@ -41,9 +92,9 @@ export const createProxyRequest = <T>(
   } as ProxyRequest<T>);
 };
 
-export function inject<T extends string | symbol>(prefix: T): Inject[T];
-export function inject<T extends object>(prefix: string | symbol): T;
-export function inject<T extends string | symbol | HandlerRecord>(prefix: string | symbol) {
+export function inject<T extends string>(prefix: T): Injectables[T];
+export function inject<T extends object>(prefix: string): T;
+export function inject<T extends string | object>(prefix: string) {
   const context = getRequestContext();
   if (!context) {
     throw new Error("Cannot use inject strategy outside of a request context");
@@ -51,11 +102,16 @@ export function inject<T extends string | symbol | HandlerRecord>(prefix: string
 
   const path = [prefix];
 
-  const result = context.handlers.first(path);
+  const { result } = getFirstHandler(path, context.handlers);
 
   if (result) {
-    if (result[InjectProxyPayload]) {
-      return result[InjectProxyPayload]({
+    if (
+      result &&
+      typeof result === "object" &&
+      ProxySymbol.onInject in result &&
+      result[ProxySymbol.onInject]
+    ) {
+      return (result[ProxySymbol.onInject] as any)({
         isInjected: true,
         path,
         context,
@@ -64,7 +120,9 @@ export function inject<T extends string | symbol | HandlerRecord>(prefix: string
     return result;
   }
 
-  throw new Error(`No injectable found for: ${path.map((el) => el.toString()).join(".")}`);
+  throw new Error(
+    `No injectable found for: ${path.map((el) => el.toString()).join(".")}`
+  );
 }
 
 export const getRequestType = () => {
@@ -75,34 +133,41 @@ export const getRequestType = () => {
   return ctx.type;
 };
 
-export const ProxyCallback = Symbol("ProxyCallback");
-export const InjectProxyPayload = Symbol("InjectProxyPayload");
-
 export function createProxyObject(
-  callback: (request: ProxyRequest, params: { isInjected: boolean }) => unknown
+  callback: (request: ProxyRequest) => unknown
 ): unknown {
   const create = (payload?: ProxyPayload) => {
     const context = getRequestContext() ?? payload?.context;
     const path = payload?.path ?? [];
 
     const fn = (...args: unknown[]) => {
-      const request = addRequestContext(createProxyRequest(path, args), context);
-      return callback(request, { isInjected: payload?.isInjected ?? false });
+      const request = addRequestContext(
+        createProxyRequest(path, args),
+        context
+      );
+      return callback(request);
     };
 
     return new Proxy(fn, {
       get(_, key) {
-        if (key === InjectProxyPayload) {
+        if (key === ProxySymbol.onInject) {
           return create;
-        } else if (key === ProxyCallback) {
-          return (request: ProxyRequest) =>
-            callback(request, { isInjected: payload?.isInjected ?? false });
+        }
+        if (key === ProxySymbol.unwrap) {
+          return (request: ProxyRequest) => callback(request);
         }
         return create({
           isInjected: payload?.isInjected ?? false,
           path: [...path, key],
           context,
         });
+      },
+      has(_, key) {
+        return (
+          key in fn ||
+          key === ProxySymbol.onInject ||
+          key === ProxySymbol.unwrap
+        );
       },
       set() {
         throw new Error("Proxy objects are read-only");
@@ -113,9 +178,31 @@ export function createProxyObject(
   return create(undefined);
 }
 
-export function proxy<T extends keyof Proxy>(prefix: T): ProxyClient<Proxy>[T];
-export function proxy<T extends HandlerRecord = Proxy>(): ProxyClient<T>;
-export function proxy<T extends keyof Proxy | HandlerRecord>(prefix?: T) {
-  const obj = createProxyObject((request) => request) as ProxyClient<HandlerRecord>;
+export function proxy<T extends keyof ToProxy<Handlers, never>>(
+  prefix: T
+): ToProxy<Handlers, never>[T];
+export function proxy<T extends HandlerNode = Handlers>(): ToProxy<T, never>;
+export function proxy<T extends keyof Handlers | HandlerRecord>(prefix?: T) {
+  const obj = createProxyObject((request) => request) as ToProxy<
+    HandlerRecord,
+    never
+  >;
   return prefix ? obj[prefix as keyof typeof obj] : obj;
 }
+
+const test = {
+  test: {
+    hello: [
+      {
+        bla: () => {},
+      },
+      {
+        test: (id: string) => {},
+      },
+    ],
+  },
+  [ProxySymbol.private]: { test: new Map<string, string>() },
+  [ProxySymbol.cache]: {} as ProxyRequestCache,
+} as const satisfies HandlerNode;
+
+type ProxyTest = typeof test;

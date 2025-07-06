@@ -20,6 +20,7 @@
 
     /* If your code runs in the DOM: */
     "lib": ["es2022", "dom", "dom.iterable"],
+    "types": ["@testing-library/jest-dom"],
 
     "jsx": "react-jsx"
   }

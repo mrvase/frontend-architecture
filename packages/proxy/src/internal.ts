@@ -6,5 +6,6 @@ export {
 } from "./context";
 export { getOptionsContext } from "./options";
 export { getTransactionContext } from "./transaction";
-export { InjectProxyPayload, type ProxyPayload } from "./proxy";
-export type { HandlerAccumulator, RETURN_TYPE } from "./types";
+export type { ProxyPayload } from "./proxy";
+export type { RETURN_TYPE } from "./request";
+export { getFirstHandler, getHandlers } from "./handlers";

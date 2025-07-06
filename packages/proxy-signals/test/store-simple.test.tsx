@@ -4,11 +4,16 @@ import { proxy } from "@nanokit/proxy";
 import { StoreProvider, useMutate, useStore } from "../src/react";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { signalPlugin } from "../src";
-import { createSingleton, type Singleton } from "@nanokit/proxy-patterns/singleton";
+import {
+  createSingleton,
+  type Singleton,
+} from "@nanokit/proxy-patterns/singleton";
 
-const Store = Symbol("Store");
+const Store = "Store";
 
-const state = createSingleton<Singleton<string>>(signalPlugin(), (map) => map.set(null, "hello"));
+const state = createSingleton<Singleton<string>>(signalPlugin(), (map) =>
+  map.set(null, "hello")
+);
 
 const handlers = {
   [Store]: {

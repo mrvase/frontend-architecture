@@ -1,23 +1,30 @@
-import { InjectProxyPayload, type ProxyPayload } from "@nanokit/proxy/internal";
+import type { ProxyPayload } from "@nanokit/proxy/internal";
 import { defaultPlugin } from "./plugins/default";
+import type { ProxySymbol } from "@nanokit/proxy";
 
 export interface Repository<K, V> extends Map<K, V> {
-  [InjectProxyPayload]?<T>(payload: ProxyPayload<T>): this;
+  [ProxySymbol.onInject]?<T>(payload: ProxyPayload<T>): this;
 }
 
-export type InferRepositoryKey<T> = T extends Repository<infer K, any> ? K : never;
+export type InferRepositoryKey<T> = T extends Repository<infer K, any>
+  ? K
+  : never;
 export type InferRepositoryValue<T extends Repository<any, any>> = Exclude<
   ReturnType<T["get"]>,
   undefined
 >;
 
 export type WithPlugin<T extends Repository<any, any>> = T & {
-  plugin: <TOut extends Repository<any, any>>(arg: (value: T) => TOut) => WithPlugin<TOut>;
+  plugin: <TOut extends Repository<any, any>>(
+    arg: (value: T) => TOut
+  ) => WithPlugin<TOut>;
   // set(...args: Parameters<T["set"]>): WithPlugin<T>;
   // [InjectProxyPayload]?<U>(payload: ProxyPayload<U>): WithPlugin<T>;
 };
 
-const assignPluginFn = <T extends Repository<any, any>>(repository: T): WithPlugin<T> => {
+const assignPluginFn = <T extends Repository<any, any>>(
+  repository: T
+): WithPlugin<T> => {
   return {
     ...defaultPlugin()(repository),
     plugin<TOut extends Repository<any, any>>(arg: (value: T) => TOut) {
@@ -38,15 +45,10 @@ export const createRepository = <T extends Repository<any, any>>(
   return assignPluginFn(repository);
 };
 
-type RepositoryPluginFactory<
-  TInputKey,
-  TOutputKey,
-  TInputValue,
-  TOutputValue,
-  TCachedValue = unknown,
-> = (
-  payload?: ProxyPayload<TOutputValue, TCachedValue>
-) => RepositoryPlugin<TInputKey, TOutputKey, TInputValue, TOutputValue>;
+type RepositoryPluginFactory<TInputKey, TOutputKey, TInputValue, TOutputValue> =
+  (
+    payload?: ProxyPayload<TOutputValue>
+  ) => RepositoryPlugin<TInputKey, TOutputKey, TInputValue, TOutputValue>;
 
 type RepositoryPlugin<TInputKey, TOutputKey, TInputValue, TOutputValue> = {
   transformInputKey(key: TInputKey): TOutputKey;

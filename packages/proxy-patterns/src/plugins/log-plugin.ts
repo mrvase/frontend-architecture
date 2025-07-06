@@ -1,10 +1,7 @@
-import {
-  type RequestContext,
-  InjectProxyPayload,
-  type ProxyPayload,
-} from "@nanokit/proxy/internal";
+import type { RequestContext, ProxyPayload } from "@nanokit/proxy/internal";
 import { type Repository } from "../repository";
 import { defaultPlugin } from "./default";
+import { ProxySymbol } from "@nanokit/proxy";
 
 export type RepositoryLog =
   | {
@@ -53,7 +50,10 @@ export const logPlugin = (options: { prefix: string }) => {
   type TKey = string;
   type TValue = unknown;
 
-  const create = <T extends Repository<any, any>>(map: T, context?: RequestContext): T => {
+  const create = <T extends Repository<any, any>>(
+    map: T,
+    context?: RequestContext
+  ): T => {
     return {
       ...defaultPlugin()(map),
       set(key: TKey, value: TValue) {
@@ -97,8 +97,11 @@ export const logPlugin = (options: { prefix: string }) => {
           });
         }
       },
-      [InjectProxyPayload]<T>(payload: ProxyPayload<T, any>) {
-        return create(map[InjectProxyPayload]?.(payload) ?? map, payload.context);
+      [ProxySymbol.onInject]<T>(payload: ProxyPayload<T>) {
+        return create(
+          map[ProxySymbol.onInject]?.(payload) ?? map,
+          payload.context
+        );
       },
     } satisfies Repository<any, any> as T;
   };

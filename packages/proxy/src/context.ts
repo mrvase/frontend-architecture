@@ -1,13 +1,8 @@
-import type {
-  HandlerStore,
-  InterceptorStore,
-  ProxyRequest,
-  ProxyRequestCache,
-  RequestType,
-} from "./types";
+import type { HandlerNode } from "./handlers";
+import type { ProxyRequest, RequestType } from "./request";
 
 export type RequestTransaction<
-  TAttributes extends Record<string, unknown> = Record<string, unknown>,
+  TAttributes extends Record<string, unknown> = Record<string, unknown>
 > = {
   promises: Promise<unknown>[];
   onSuccess: (() => void)[];
@@ -19,19 +14,17 @@ export type RequestOptions = {
   noCache?: boolean;
 };
 
-export type RequestContext<T = unknown, TCachedValue = unknown> = {
+export type RequestContext<T = unknown> = {
   type: RequestType;
   request: ProxyRequest<T>;
   requestId: string;
   parentRequestId: string | null;
-  handlers: HandlerStore;
-  interceptors: InterceptorStore;
-  cache: ProxyRequestCache<TCachedValue>;
+  handlers: HandlerNode;
   transaction?: RequestTransaction;
   options?: RequestOptions;
 };
 
-export const REQUEST_CONTEXT = Symbol("REQUEST_CONTEXT");
+const REQUEST_CONTEXT = Symbol("REQUEST_CONTEXT");
 
 type LoadedRequest = ProxyRequest<any> & {
   [REQUEST_CONTEXT]: RequestContext | undefined;
@@ -51,11 +44,20 @@ export function addRequestContext<T>(
 
 let CurrentRequestContext: RequestContext | undefined = undefined;
 
-export function getRequestContext(request?: ProxyRequest): RequestContext | undefined {
-  return CurrentRequestContext ?? (request as LoadedRequest)?.[REQUEST_CONTEXT] ?? undefined;
+export function getRequestContext(
+  request?: ProxyRequest
+): RequestContext | undefined {
+  return (
+    CurrentRequestContext ??
+    (request as LoadedRequest)?.[REQUEST_CONTEXT] ??
+    undefined
+  );
 }
 
-export function trackRequestContext<T>(context: RequestContext | undefined, fn: () => T): T {
+export function trackRequestContext<T>(
+  context: RequestContext | undefined,
+  fn: () => T
+): T {
   const prevContext = CurrentRequestContext;
   CurrentRequestContext = context;
   try {

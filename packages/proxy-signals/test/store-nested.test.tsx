@@ -1,22 +1,21 @@
 import { it, expect } from "vitest";
 import "@testing-library/jest-dom/vitest";
-import { createHandlerStore, proxy, query } from "@nanokit/proxy";
+import { proxy, ProxySymbol, query } from "@nanokit/proxy";
 import { createSignalCache } from "../src";
-import {
-  CacheProvider,
-  DependenciesProvider,
-  StoreProvider,
-  useStore,
-} from "../src/react";
+import { DependenciesProvider, StoreProvider, useStore } from "../src/react";
 import { render, screen } from "@testing-library/react";
 
-const Outer = Symbol("Outer");
-const Store = Symbol("Store");
+const Outer = "Outer";
+const Store = "Store";
+
+const cacheOuter = createSignalCache();
+const cacheStore = createSignalCache();
 
 const outerHandlers = {
   [Outer]: {
     getValue: () => "hello",
   },
+  [ProxySymbol.cache]: cacheOuter,
 };
 
 const handlers = {
@@ -26,6 +25,7 @@ const handlers = {
     // query itself
     getValue: () => query(store.getValuePrivate()).split(" ")[0],
   },
+  [ProxySymbol.cache]: cacheStore,
 };
 
 const outer = proxy<typeof outerHandlers>()[Outer];
@@ -38,19 +38,12 @@ function Component() {
 }
 
 it("Component", async () => {
-  const cacheOuter = createSignalCache();
-  const cacheStore = createSignalCache();
-  const handlerStore = createHandlerStore();
-  handlerStore.register(outerHandlers);
-
   render(
-    <CacheProvider cache={cacheOuter}>
-      <DependenciesProvider handlers={handlerStore}>
-        <StoreProvider handlers={handlers} cache={cacheStore}>
-          <Component />
-        </StoreProvider>
-      </DependenciesProvider>
-    </CacheProvider>
+    <DependenciesProvider handlers={outerHandlers}>
+      <StoreProvider handlers={handlers}>
+        <Component />
+      </StoreProvider>
+    </DependenciesProvider>
   );
 
   expect(screen.getByText("hello")).toBeInTheDocument();

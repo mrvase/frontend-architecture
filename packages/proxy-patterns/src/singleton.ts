@@ -1,15 +1,16 @@
-import { InjectProxyPayload, type ProxyPayload } from "@nanokit/proxy/internal";
+import type { ProxyPayload } from "@nanokit/proxy/internal";
 import {
   createRepository,
   type Repository,
   type WithPlugin as WithRepositoryPlugin,
 } from "./repository";
 import { defaultPlugin } from "./plugins/default";
+import { ProxySymbol } from "@nanokit/proxy";
 
 export interface Singleton<V> {
   get(): V | undefined;
   set(value: V): void;
-  [InjectProxyPayload]?<T>(payload: ProxyPayload<T>): this;
+  [ProxySymbol.onInject]?<T>(payload: ProxyPayload<T>): this;
 }
 
 export type InferSingletonValue<T extends Singleton<any>> = Exclude<
@@ -25,7 +26,7 @@ export type ConvertToRepository<T extends Singleton<any>> = Repository<
 export interface ConvertToSingleton<T extends Repository<null, any>> {
   get(): ReturnType<T["get"]>;
   set(value: Parameters<T["set"]>[1]): void;
-  [InjectProxyPayload]?<T>(payload: ProxyPayload<T>): this;
+  [ProxySymbol.onInject]?<T>(payload: ProxyPayload<T>): this;
 }
 
 export type WithPlugin<T extends Singleton<any>> = T & {
@@ -45,14 +46,18 @@ function createSingletonFacade<T extends Singleton<any>>(
     plugin<TOut extends Repository<null, any>>(
       arg: (value: ConvertToRepository<T>) => TOut
     ): WithPlugin<ConvertToSingleton<TOut>> {
-      const next = map.plugin<TOut>(arg) as unknown as WithRepositoryPlugin<Repository<null, any>>;
+      const next = map.plugin<TOut>(arg) as unknown as WithRepositoryPlugin<
+        Repository<null, any>
+      >;
       if (next === map) {
         return this;
       }
       return createSingletonFacade(next);
     },
-    [InjectProxyPayload]<U>(payload: ProxyPayload<U>) {
-      return createSingletonFacade<Singleton<any>>(map[InjectProxyPayload]?.(payload) ?? map);
+    [ProxySymbol.onInject]<U>(payload: ProxyPayload<U>) {
+      return createSingletonFacade<Singleton<any>>(
+        map[ProxySymbol.onInject]?.(payload) ?? map
+      );
     },
   } satisfies WithPlugin<Singleton<any>>;
 
@@ -73,7 +78,9 @@ export interface DefaultedSingleton<V> extends Repository<null, V> {
 export const defaultValuePlugin =
   <TValue>(defaultValue: TValue) =>
   <T extends Repository<null, TValue>>(map: T): DefaultedSingleton<TValue> => {
-    const create = <T extends Repository<null, TValue>>(map: T): DefaultedSingleton<TValue> =>
+    const create = <T extends Repository<null, TValue>>(
+      map: T
+    ): DefaultedSingleton<TValue> =>
       ({
         ...defaultPlugin()(map),
         get() {
@@ -83,10 +90,10 @@ export const defaultValuePlugin =
           }
           return value;
         },
-        [InjectProxyPayload]<T>(payload: ProxyPayload<T>) {
-          return create(map[InjectProxyPayload]?.(payload) ?? map);
+        [ProxySymbol.onInject]<T>(payload: ProxyPayload<T>) {
+          return create(map[ProxySymbol.onInject]?.(payload) ?? map);
         },
-      }) as DefaultedSingleton<TValue>;
+      } as DefaultedSingleton<TValue>);
 
     return create(map);
   };

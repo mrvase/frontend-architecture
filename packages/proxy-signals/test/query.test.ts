@@ -1,23 +1,17 @@
-import {
-  createHandlerStore,
-  createInvokers,
-  inject as inject_,
-  proxy as proxy_,
-  transaction,
-} from "@nanokit/proxy";
+import { Inject, transaction, type ToProxy } from "@nanokit/proxy";
 import { describe, expect, it } from "vitest";
 import { createSignalCache } from "../src";
 import { client } from "@nanokit/proxy-patterns/client";
 
-function proxy<T extends keyof Handlers>(key: T) {
-  return proxy_<Handlers>()[key];
+function proxy<T extends keyof ToProxy<Handlers, never>>(key: T) {
+  return Inject.proxy<Handlers>()[key];
 }
-function inject<T extends keyof Handlers>(key: T) {
-  return inject_<Handlers[T]>(key);
+function inject<T extends keyof Injectables>(key: T) {
+  return Inject<Injectables[T]>(key);
 }
 
-const Client1 = Symbol("Client1");
-const Client2 = Symbol("Client2");
+const Client1 = "Client1";
+const Client2 = "Client2";
 
 const createClient1 = (
   state: { value: number },
@@ -34,6 +28,7 @@ const createClient1 = (
     await new Promise((res) => setTimeout(res, 20));
     state.value++;
   },
+  [Inject.cache]: createSignalCache(),
 });
 
 const createClient2 = (state: { value: number }) => ({
@@ -45,37 +40,45 @@ const createClient2 = (state: { value: number }) => ({
     await new Promise((res) => setTimeout(res, 20));
     state.value++;
   },
+  [Inject.cache]: createSignalCache(),
 });
 
-const WrapperClient = Symbol("WrapperClient");
+const WrapperClient = "WrapperClient";
 
 const wrapperClient = {
-  [WrapperClient]: {
-    getCount: () => {
-      const client = inject(Client1);
-      const value = client.getCount();
-      return value;
-    },
-    increment: async () => {
-      const client = inject(Client1);
-      await client.increment();
-    },
+  getCount: () => {
+    const client = inject(Client1);
+    const value = client.getCount();
+    return value;
+  },
+  increment: async () => {
+    const client = inject(Client1);
+    await client.increment();
   },
 };
 
-const createHandlers = (counter?: { value: number }) => ({
+const createInjectables = (counter?: { value: number }) => ({
   [Client1]: client(createClient1({ value: 0 }, counter)),
   [Client2]: client(createClient2({ value: 0 })),
-  ...wrapperClient,
 });
 
+const createHandlers = (counter?: { value: number }) => {
+  const injectables = createInjectables(counter);
+  return {
+    [WrapperClient]: wrapperClient,
+    ...injectables,
+    [Inject.private]: injectables,
+    [Inject.cache]: createSignalCache(),
+  };
+};
+
+type Injectables = ReturnType<typeof createInjectables>;
 type Handlers = ReturnType<typeof createHandlers>;
 
 describe("auto-invalidates", () => {
   it("gets correct initialState", async () => {
-    const handlers = createHandlerStore();
-    handlers.register(createHandlers());
-    const invokers = createInvokers({ handlers, cache: createSignalCache() });
+    const handlers = createHandlers();
+    const invokers = Inject.createInvokers(handlers);
 
     const client = proxy(Client1);
 
@@ -83,9 +86,8 @@ describe("auto-invalidates", () => {
   });
 
   it("increments after mutation", async () => {
-    const handlers = createHandlerStore();
-    handlers.register(createHandlers());
-    const invokers = createInvokers({ handlers, cache: createSignalCache() });
+    const handlers = createHandlers();
+    const invokers = Inject.createInvokers(handlers);
 
     const client = proxy(Client1);
 
@@ -95,10 +97,9 @@ describe("auto-invalidates", () => {
   });
 
   it("is cached correctly", async () => {
-    const handlers = createHandlerStore();
     const counter = { value: 0 };
-    handlers.register(createHandlers(counter));
-    const invokers = createInvokers({ handlers, cache: createSignalCache() });
+    const handlers = createHandlers(counter);
+    const invokers = Inject.createInvokers(handlers);
 
     const client = proxy(Client1);
 
@@ -115,10 +116,9 @@ describe("auto-invalidates", () => {
   });
 
   it("is cached correctly when wrapped", async () => {
-    const handlers = createHandlerStore();
     const counter = { value: 0 };
-    handlers.register(createHandlers(counter));
-    const invokers = createInvokers({ handlers, cache: createSignalCache() });
+    const handlers = createHandlers(counter);
+    const invokers = Inject.createInvokers(handlers);
     const wrapper = proxy(WrapperClient);
 
     expect(await invokers.query(wrapper.getCount())).toBe(0);
@@ -133,10 +133,9 @@ describe("auto-invalidates", () => {
   });
 
   it("is unaffected by invalidation of unrelated client", async () => {
-    const handlers = createHandlerStore();
     const counter = { value: 0 };
-    handlers.register(createHandlers(counter));
-    const invokers = createInvokers({ handlers, cache: createSignalCache() });
+    const handlers = createHandlers(counter);
+    const invokers = Inject.createInvokers(handlers);
     const wrapper = proxy(WrapperClient);
     const client2 = proxy(Client2);
 
@@ -144,21 +143,20 @@ describe("auto-invalidates", () => {
 
     expect(counter.value).toBe(1);
 
-    await invokers.dispatch(client2.increment());
+    await transaction(() => invokers.dispatch(client2.increment()));
 
     expect(counter.value).toBe(1);
   });
 
   it("increments after multiple subsequent mutations", async () => {
-    const handlers = createHandlerStore();
-    handlers.register(createHandlers());
-    const invokers = createInvokers({ handlers, cache: createSignalCache() });
+    const handlers = createHandlers();
+    const invokers = Inject.createInvokers(handlers);
     const client1 = proxy(Client1);
     const wrapper = proxy(WrapperClient);
 
-    await invokers.dispatch(client1.increment());
-    await invokers.dispatch(client1.increment());
-    await invokers.dispatch(client1.increment());
+    await transaction(() => invokers.dispatch(client1.increment()));
+    await transaction(() => invokers.dispatch(client1.increment()));
+    await transaction(() => invokers.dispatch(client1.increment()));
 
     expect(await invokers.query(wrapper.getCount())).toBe(3);
   });

@@ -1,15 +1,24 @@
-import { getRequestContext, type RequestContext, type RequestTransaction } from "./context";
-import type { ProxyRequest } from "./types";
+import {
+  getRequestContext,
+  type RequestContext,
+  type RequestTransaction,
+} from "./context";
+import type { ProxyRequest } from "./request";
 
 let TransactionContext: RequestTransaction | undefined = undefined;
 
-export const getSyncTransactionContext = <TAttributes extends Record<string, unknown>>() =>
-  TransactionContext as RequestTransaction<TAttributes> | undefined;
+export const getSyncTransactionContext = <
+  TAttributes extends Record<string, unknown>
+>() => TransactionContext as RequestTransaction<TAttributes> | undefined;
 
-export const getTransactionContext = <TAttributes extends Record<string, unknown>>(
+export const getTransactionContext = <
+  TAttributes extends Record<string, unknown>
+>(
   context?: RequestContext
 ) =>
-  (TransactionContext ?? context?.transaction ?? getRequestContext()?.transaction) as
+  (TransactionContext ??
+    context?.transaction ??
+    getRequestContext()?.transaction) as
     | RequestTransaction<TAttributes>
     | undefined;
 

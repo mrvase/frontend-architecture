@@ -1,19 +1,23 @@
-import { dispatch } from "@nanokit/proxy";
+import { dispatch, ProxySymbol } from "@nanokit/proxy";
 import {
   type RequestContext,
   trackRequestContext,
-  InjectProxyPayload,
   type ProxyPayload,
 } from "@nanokit/proxy/internal";
 import { EventsSymbol } from "../events";
 import { type Repository } from "../repository";
 import { defaultPlugin } from "./default";
 
-export const eventPlugin = (options: { eventPrefix?: string | symbol } = {}) => {
+export const eventPlugin = (
+  options: { eventPrefix?: string | symbol } = {}
+) => {
   type TKey = string;
   type TValue = unknown;
 
-  const create = <T extends Repository<any, any>>(map: T, context?: RequestContext): T => {
+  const create = <T extends Repository<any, any>>(
+    map: T,
+    context?: RequestContext
+  ): T => {
     return {
       ...defaultPlugin()(map),
       get: (key: TKey) => map.get(key),
@@ -36,8 +40,11 @@ export const eventPlugin = (options: { eventPrefix?: string | symbol } = {}) => 
         }
         return this;
       },
-      [InjectProxyPayload]<T>(payload: ProxyPayload<T, any>) {
-        return create(map[InjectProxyPayload]?.(payload) ?? map, payload.context);
+      [ProxySymbol.onInject]<T>(payload: ProxyPayload<T>) {
+        return create(
+          map[ProxySymbol.onInject]?.(payload) ?? map,
+          payload.context
+        );
       },
     };
   };

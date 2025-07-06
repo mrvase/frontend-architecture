@@ -17,129 +17,76 @@ import {
   useEffect,
 } from "react";
 import {
-  defaultCache,
   createInvokers,
   globalInvokers,
-  createHandlerStore,
-  createInterceptorStore,
-  globalHandlers,
-  globalInterceptors,
   type Invokers,
-  type HandlerRecord,
-  type HandlerStore,
-  type InterceptorStore,
   type ProxyRequest,
-  type ProxyRequestCache,
-  Cache,
-  type Inject,
+  type HandlerNode,
+  type HandlerRecord,
+  ProxySymbol,
 } from "@nanokit/proxy";
 import { ReactiveExtended } from "./signals/signals-extended";
 import { getKey } from "./utils";
 import { createSignalCache } from "./cache";
 
-const CacheContext = createContext<ProxyRequestCache>(defaultCache);
+const globalHandlers = [] as HandlerNode[];
+
 const InvokersContext = createContext<Invokers>(globalInvokers);
-const HandlersContext = createContext<HandlerStore>(globalHandlers);
-const InterceptorsContext = createContext<InterceptorStore>(globalInterceptors);
-
-export function CacheProvider({
-  cache,
-  children,
-}: {
-  cache: ProxyRequestCache;
-  children: React.ReactNode;
-}) {
-  return <CacheContext.Provider value={cache}>{children}</CacheContext.Provider>;
-}
-
-export function useSignalCache() {
-  return useContext(CacheContext);
-}
+const HandlersContext = createContext<HandlerNode>(globalHandlers);
 
 export function DependenciesProvider({
   handlers,
-  interceptors,
   children,
 }: {
-  handlers?: HandlerStore;
-  interceptors?: InterceptorStore;
+  handlers: HandlerNode;
   children: React.ReactNode;
 }) {
   const parentHandlers = useContext(HandlersContext);
-  const parentInterceptors = useContext(InterceptorsContext);
-  const cache = useContext(CacheContext);
 
   const nextHandlers = useMemo(() => {
     // we want the new handlers to be found first so that inner contexts
     // are prioritized over outer contexts
-    return handlers ? createHandlerStore(handlers, parentHandlers) : parentHandlers;
+    return [handlers, parentHandlers];
   }, [handlers, parentHandlers]);
 
-  const nextInterceptors = useMemo(() => {
-    // we want the new handlers to be found first so that inner contexts
-    // are prioritized over outer contexts
-    return interceptors
-      ? createInterceptorStore(interceptors, parentInterceptors)
-      : parentInterceptors;
-  }, [interceptors, parentInterceptors]);
-
-  const invokers = useMemo(
-    () =>
-      createInvokers({
-        handlers: nextHandlers,
-        interceptors: nextInterceptors,
-        cache,
-      }),
-    [nextHandlers, nextInterceptors]
-  );
+  const invokers = useMemo(() => createInvokers(nextHandlers), [nextHandlers]);
 
   return (
     <HandlersContext.Provider value={nextHandlers}>
-      <InterceptorsContext.Provider value={nextInterceptors}>
-        <InvokersContext.Provider value={invokers}>{children}</InvokersContext.Provider>
-      </InterceptorsContext.Provider>
+      <InvokersContext.Provider value={invokers}>
+        {children}
+      </InvokersContext.Provider>
     </HandlersContext.Provider>
   );
 }
 
 export function StoreProvider({
   handlers,
-  cache: cacheFromArg,
   children,
 }: {
   handlers: HandlerRecord;
-  cache?: ProxyRequestCache;
   children: React.ReactNode;
 }) {
   const parentHandlers = useContext(HandlersContext);
-  const parentInterceptors = useContext(InterceptorsContext);
-  const parentCache = useContext(CacheContext);
-  const cache = useMemo(
-    () => cacheFromArg ?? (handlers[Cache] as ProxyRequestCache | undefined) ?? createSignalCache(),
-    [cacheFromArg]
-  );
+
+  const store = useMemo(() => {
+    return {
+      ...handlers,
+      [ProxySymbol.cache]: handlers[ProxySymbol.cache] ?? createSignalCache(),
+    };
+  }, [handlers]);
 
   const nextHandlers = useMemo(() => {
-    const store = createHandlerStore();
-    store.register({ ...handlers, [Cache]: cache });
-    // we want the new handlers to be found first so that inner contexts
-    // are prioritized over outer contexts
-    return createHandlerStore(store, parentHandlers);
+    return [store, parentHandlers];
   }, [handlers, parentHandlers]);
 
-  const invokers = useMemo(
-    () =>
-      createInvokers({
-        handlers: nextHandlers,
-        interceptors: parentInterceptors,
-        cache: parentCache,
-      }),
-    [nextHandlers, parentInterceptors, parentCache]
-  );
+  const invokers = useMemo(() => createInvokers(nextHandlers), [nextHandlers]);
 
   return (
     <HandlersContext.Provider value={nextHandlers}>
-      <InvokersContext.Provider value={invokers}>{children}</InvokersContext.Provider>
+      <InvokersContext.Provider value={invokers}>
+        {children}
+      </InvokersContext.Provider>
     </HandlersContext.Provider>
   );
 }
@@ -197,23 +144,23 @@ export const useHandlerStore = () => {
 };
 
 export const useHandlers = (handlers?: HandlerRecord) => {
-  const ctx = useContext(HandlersContext);
-
-  const register = useCallback(
-    (handlers: HandlerRecord) => {
-      return ctx.register(handlers);
-    },
-    [ctx]
-  );
-
   useEffect(() => {
     if (!handlers) {
       return;
     }
-    return register(handlers);
-  }, [register, handlers]);
 
-  return register;
+    globalHandlers.push(handlers);
+
+    return () => {
+      const index = globalHandlers.indexOf(handlers);
+      if (index !== -1) {
+        globalHandlers[index] = globalHandlers[globalHandlers.length - 1];
+        globalHandlers.pop();
+      }
+    };
+  }, [handlers]);
+
+  return null;
 };
 
 function useOnKeyUpdate<T>(
@@ -246,15 +193,23 @@ export function Hydrate({
   children: React.ReactNode;
 }) {
   return (
-    <SymbolContext.Provider value={useMemo(() => new Map<string, symbol>(), [])}>
+    <SymbolContext.Provider
+      value={useMemo(() => new Map<string, symbol>(), [])}
+    >
       <HydrateContext.Provider value={data}>{children}</HydrateContext.Provider>
     </SymbolContext.Provider>
   );
 }
 
 export function useStore<T>(req: ProxyRequest<T>, invokers?: Invokers): T;
-export function useStore<T>(req: ProxyRequest<T> | undefined, invokers?: Invokers): T | undefined;
-export function useStore<T>(req: ProxyRequest<T> | undefined, invokers?: Invokers) {
+export function useStore<T>(
+  req: ProxyRequest<T> | undefined,
+  invokers?: Invokers
+): T | undefined;
+export function useStore<T>(
+  req: ProxyRequest<T> | undefined,
+  invokers?: Invokers
+) {
   const { query } = invokers ?? useContext(InvokersContext);
   const hydrateData = useContext(HydrateContext);
   const symbolRecord = useContext(SymbolContext);
@@ -360,24 +315,4 @@ export function useQuery<T>(req: ProxyRequest<Promise<T>> | undefined) {
     refetchOnReconnect: false,
     refetchOnWindowFocus: false,
   });
-}
-
-export function useInject<T extends string | symbol>(prefix: T): Inject[T];
-export function useInject<T extends object>(prefix: string | symbol): T;
-export function useInject<T extends string | symbol | HandlerRecord>(prefix: string | symbol) {
-  const handlers = useContext(HandlersContext);
-
-  const injectable = useMemo(() => {
-    const path = [prefix];
-
-    const result = handlers.first(path);
-
-    if (!result) {
-      throw new Error(`No injectable found for: ${path.toString()}`);
-    }
-
-    return result;
-  }, [prefix]);
-
-  return injectable;
 }

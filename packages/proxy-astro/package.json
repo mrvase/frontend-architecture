@@ -19,7 +19,7 @@
     "@nanokit/proxy-signals": "workspace:*",
     "@types/react": "18.3.14",
     "@types/react-dom": "18.3.3",
-    "astro": "5.4.3",
+    "astro": "5.11.0",
     "react": "18.3.1",
     "react-dom": "18.3.1"
   },
@@ -27,7 +27,7 @@
     "@nanokit/proxy-signals": "workspace:*",
     "@nanokit/proxy-patterns": "workspace:*",
     "@nanokit/proxy": "workspace:*",
-    "astro": "5.4.3",
+    "astro": "5.11.0",
     "react": "18.3.1",
     "react-dom": "18.3.1"
   }

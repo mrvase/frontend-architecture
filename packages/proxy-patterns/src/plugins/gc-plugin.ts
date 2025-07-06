@@ -1,11 +1,15 @@
-import { InjectProxyPayload, type ProxyPayload } from "@nanokit/proxy/internal";
-import { type Repository } from "../repository";
+import type { ProxyPayload } from "@nanokit/proxy/internal";
+import type { Repository } from "../repository";
 import { defaultPlugin } from "./default";
+import { ProxySymbol } from "@nanokit/proxy";
 
 export type GcState = {
   name: string;
   time: number;
-  timeouts: Map<string, { timeoutId: ReturnType<typeof setTimeout>; startTime: number }>;
+  timeouts: Map<
+    string,
+    { timeoutId: ReturnType<typeof setTimeout>; startTime: number }
+  >;
 };
 
 type GcStateListener = (request: GcState) => void;
@@ -32,7 +36,10 @@ export const gcPlugin = (options: {
 }) => {
   type TKey = string;
   type TValue = unknown;
-  const timeouts = new Map<TKey, { timeoutId: ReturnType<typeof setTimeout>; startTime: number }>();
+  const timeouts = new Map<
+    TKey,
+    { timeoutId: ReturnType<typeof setTimeout>; startTime: number }
+  >();
   const timedOutKeys = new Set<TKey>();
 
   let gc: ((key: TKey) => void) | null = null;
@@ -109,8 +116,8 @@ export const gcPlugin = (options: {
         timedOutKeys.clear();
         return map.clear();
       },
-      [InjectProxyPayload]<T>(payload: ProxyPayload<T>) {
-        return create(map[InjectProxyPayload]?.(payload) ?? map);
+      [ProxySymbol.onInject]<T>(payload: ProxyPayload<T>) {
+        return create(map[ProxySymbol.onInject]?.(payload) ?? map);
       },
     } satisfies Repository<any, any> as T;
   };
