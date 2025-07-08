@@ -2,7 +2,7 @@ import { it, expect } from "vitest";
 import "@testing-library/jest-dom/vitest";
 import { proxy, ProxySymbol, query } from "@nanokit/proxy";
 import { createSignalCache } from "../src";
-import { DependenciesProvider, StoreProvider, useStore } from "../src/react";
+import { HandlersProvider, StoreProvider, useStore } from "../src/react";
 import { render, screen } from "@testing-library/react";
 
 const Outer = "Outer";
@@ -39,11 +39,11 @@ function Component() {
 
 it("Component", async () => {
   render(
-    <DependenciesProvider handlers={outerHandlers}>
+    <HandlersProvider handlers={outerHandlers}>
       <StoreProvider handlers={handlers}>
         <Component />
       </StoreProvider>
-    </DependenciesProvider>
+    </HandlersProvider>
   );
 
   expect(screen.getByText("hello")).toBeInTheDocument();

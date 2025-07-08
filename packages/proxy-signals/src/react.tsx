@@ -6,6 +6,7 @@ import {
   type UseQueryResult,
   type MutationOptions,
   type MutationState,
+  type UseQueryOptions,
 } from "@tanstack/react-query";
 import {
   useSyncExternalStore,
@@ -34,7 +35,7 @@ const globalHandlers = [] as HandlerNode[];
 const InvokersContext = createContext<Invokers>(globalInvokers);
 const HandlersContext = createContext<HandlerNode>(globalHandlers);
 
-export function DependenciesProvider({
+export function HandlersProvider({
   handlers,
   children,
 }: {
@@ -269,11 +270,27 @@ export function useStore<T>(
   );
 }
 
-export function useQuery<T>(req: ProxyRequest<Promise<T>>): UseQueryResult<T>;
 export function useQuery<T>(
-  req: ProxyRequest<Promise<T>> | undefined
+  req: ProxyRequest<Promise<T>>,
+  options?: Omit<
+    UseQueryOptions<T>,
+    "queryKey" | "queryFn" | "queryHash" | "queryKeyHashFn"
+  >
+): UseQueryResult<T>;
+export function useQuery<T>(
+  req: ProxyRequest<Promise<T>> | undefined,
+  options?: Omit<
+    UseQueryOptions<T>,
+    "queryKey" | "queryFn" | "queryHash" | "queryKeyHashFn"
+  >
 ): UseQueryResult<T | undefined>;
-export function useQuery<T>(req: ProxyRequest<Promise<T>> | undefined) {
+export function useQuery<T>(
+  req: ProxyRequest<Promise<T>> | undefined,
+  options?: Omit<
+    UseQueryOptions<T>,
+    "queryKey" | "queryFn" | "queryHash" | "queryKeyHashFn"
+  >
+) {
   const queryClient = useQueryClient();
   const invokers = useContext(InvokersContext);
 
@@ -314,5 +331,6 @@ export function useQuery<T>(req: ProxyRequest<Promise<T>> | undefined) {
     refetchOnMount: false,
     refetchOnReconnect: false,
     refetchOnWindowFocus: false,
+    ...options,
   });
 }

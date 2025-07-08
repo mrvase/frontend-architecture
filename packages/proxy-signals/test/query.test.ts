@@ -1,9 +1,9 @@
-import { Inject, transaction, type ToProxy } from "@nanokit/proxy";
+import { Inject, transaction, type InferHandlers } from "@nanokit/proxy";
 import { describe, expect, it } from "vitest";
 import { createSignalCache } from "../src";
 import { client } from "@nanokit/proxy-patterns/client";
 
-function proxy<T extends keyof ToProxy<Handlers, never>>(key: T) {
+function proxy<T extends keyof InferHandlers<Handlers>>(key: T) {
   return Inject.proxy<Handlers>()[key];
 }
 function inject<T extends keyof Injectables>(key: T) {

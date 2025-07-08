@@ -16,6 +16,8 @@ export {
   inject,
   getRequestType,
   proxy,
+  type InferHandlers,
+  type InferInjectables,
   type ToProxy,
   type Handlers,
   type Injectables,
@@ -35,8 +37,6 @@ import { ProxySymbol } from "./handlers";
 import { createInvokers, globalInvokers, type Invokers } from "./invokers";
 import { inject, proxy } from "./proxy";
 
-export const handlers = proxy();
-
 export const { query, mutate, dispatch, redispatch, invalidate, cache } =
   globalInvokers;
 
@@ -53,7 +53,6 @@ export const Inject = Object.assign(
   inject,
   {
     proxy,
-    handlers,
     query,
     mutate,
     dispatch,

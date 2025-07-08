@@ -1,5 +1,5 @@
 import {
-  createProxyObject,
+  createProxy,
   getFirstHandler,
   getOptionsContext,
   getRequestContext,
@@ -15,7 +15,7 @@ import {
 export function client<T extends HandlerRecord>(record: T): T;
 export function client<T extends HandlerRecord>(fetcher: RequestFn): T;
 export function client<T extends HandlerRecord>(record: T | RequestFn): T {
-  return createProxyObject((request) => {
+  return createProxy((request) => {
     const context = getRequestContext(request);
     const options = { ...context?.options, ...getOptionsContext() };
 

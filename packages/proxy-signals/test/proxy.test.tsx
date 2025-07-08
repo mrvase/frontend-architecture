@@ -2,13 +2,13 @@ import { it, expect, beforeEach } from "vitest";
 import "@testing-library/jest-dom/vitest";
 import { cleanup, render, screen } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { type ToProxy, Inject } from "@nanokit/proxy";
+import { type InferHandlers, Inject } from "@nanokit/proxy";
 import {
   createRepository,
   type Repository,
 } from "@nanokit/proxy-patterns/repository";
 import { createSignalCache, signalPlugin } from "../src";
-import { DependenciesProvider, useQuery, useStore } from "../src/react";
+import { HandlersProvider, useQuery, useStore } from "../src/react";
 import { client } from "@nanokit/proxy-patterns/client";
 
 beforeEach(() => {
@@ -21,7 +21,7 @@ const Derived = "Derived";
 const Repository = "Repository";
 const Client = "Client";
 
-function proxy<T extends keyof ToProxy<Handlers, never>>(key: T) {
+function proxy<T extends keyof Handlers>(key: T) {
   return Inject.proxy<Handlers>()[key];
 }
 function inject<T extends keyof Injectables>(key: T) {
@@ -174,9 +174,9 @@ it("Sync component", async () => {
   const { mutate } = Inject.createInvokers(handlers);
 
   render(
-    <DependenciesProvider handlers={handlers}>
+    <HandlersProvider handlers={handlers}>
       <ComponentSync />
-    </DependenciesProvider>
+    </HandlersProvider>
   );
 
   expect(screen.getByText("hello")).toBeInTheDocument();
@@ -194,9 +194,9 @@ it("Async component", async () => {
 
   render(
     <QueryClientProvider client={new QueryClient()}>
-      <DependenciesProvider handlers={handlers}>
+      <HandlersProvider handlers={handlers}>
         <ComponentAsync />
-      </DependenciesProvider>
+      </HandlersProvider>
     </QueryClientProvider>
   );
 

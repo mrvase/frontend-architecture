@@ -27,7 +27,7 @@ export type InjectableRecord = {
 export type HandlerRecord = {
   [key: string]: HandlerNode;
 } & {
-  [ProxySymbol.private]?: HandlerNode | InjectableRecord;
+  [ProxySymbol.private]?: Nested<HandlerNode | InjectableRecord>;
   [ProxySymbol.cache]?: ProxyRequestCache;
   [ProxySymbol.onInject]?: (payload: unknown) => unknown;
   [ProxySymbol.unwrap]?: (request: ProxyRequest) => unknown;

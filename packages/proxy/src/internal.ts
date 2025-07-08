@@ -1,4 +1,4 @@
-export { createProxyObject } from "./proxy";
+export { createProxy } from "./proxy";
 export {
   trackRequestContext,
   getRequestContext,

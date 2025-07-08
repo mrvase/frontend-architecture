@@ -1,4 +1,4 @@
-import { createProxyObject, type RETURN_TYPE } from "@nanokit/proxy/internal";
+import { createProxy, type RETURN_TYPE } from "@nanokit/proxy/internal";
 
 export type Resolvers<State extends object = any> = {
   [Key: string]: (payload: any) => State | ((state: State) => State);
@@ -15,12 +15,12 @@ type DefaultedPayload<TPayload, TDefaultPayload extends object> = {
 type OptionalParameter<T extends object> = {} extends T
   ? []
   : undefined extends T
-    ? []
-    : [payload: T];
+  ? []
+  : [payload: T];
 
 export type DefaultedResolvers<
   TResolvers extends Resolvers,
-  TDefaultPayload extends object = {},
+  TDefaultPayload extends object = {}
 > = {
   [Key in keyof TResolvers]: (
     ...args: OptionalParameter<
@@ -55,7 +55,7 @@ export type Decider<TPayload = any> = (arg: TPayload) => Decision;
 
 export type Decision<
   TState extends object = any,
-  T extends ProxyEvent<any> = ProxyEvent<any>,
+  T extends ProxyEvent<any> = ProxyEvent<any>
 > = ((state: TState) => T) | T | undefined;
 
 export type InferDecision<TRecord extends Resolvers> = Decision<
@@ -114,12 +114,12 @@ export function applyEvent<TResolvers extends Resolvers>(handlers: TResolvers) {
 
 export const proxyEvents = <
   T extends Resolvers,
-  U extends Record<string, unknown> = never,
+  U extends Record<string, unknown> = never
 >(
   handlers: T,
   resolve?: (arg: InferState<T>) => U
 ) => {
-  return createProxyObject((request) => {
+  return createProxy((request) => {
     return (state: InferState<T>) => {
       const extra = resolve?.(state);
       if (extra) {

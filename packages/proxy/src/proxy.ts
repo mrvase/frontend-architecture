@@ -15,6 +15,15 @@ import {
 } from "./handlers";
 import { type ProxyRequest, type ProxyEvent } from "./request";
 
+type ProxyHandlerRecord = {
+  [key: string]: ProxyHandlerNode;
+};
+type ProxyHandlerNode = HandlerFn | ProxyHandlerRecord;
+
+type ProxyInjectableRecord = {
+  [key: string]: unknown;
+};
+
 type Prettify<T> = {
   [K in keyof T]: T[K];
 } & {};
@@ -27,12 +36,37 @@ type UnionToIntersection<U> = (U extends any ? (x: U) => void : never) extends (
 
 type Flatten<T> = T extends any[] ? Flatten<T[number]> : T;
 
-type UnionToProxy<
-  T,
-  K extends string
-> = UnionToIntersection<T> extends HandlerNode
-  ? ToProxy<UnionToIntersection<T>, K>
+type FromUnion<T> = UnionToIntersection<T> extends HandlerNode
+  ? InferHandlers<UnionToIntersection<T>>
   : {};
+
+export type InferInjectables<T extends InjectableRecord> = {
+  [Key in keyof T as Key extends typeof ProxySymbol.private
+    ? never
+    : Key]: T[Key];
+};
+
+export type InferHandlers<T extends HandlerNode> = RequestFn extends T
+  ? {}
+  : T extends HandlerFn
+  ? T
+  : T extends HandlerRecord
+  ? {
+      -readonly [Key in keyof T as Key extends
+        | typeof ProxySymbol.private
+        | typeof ProxySymbol.cache
+        ? never
+        : T[Key] extends []
+        ? never
+        : Key]: InferHandlers<T[Key]>;
+    }
+  : T extends []
+  ? {}
+  : T extends [HandlerFn, ...HandlerFn[]][]
+  ? T[0] // we assume every handler is equivalent
+  : T extends (HandlerRecord | RequestFn)[]
+  ? FromUnion<Flatten<Exclude<T[number], Function>>> // we assume every function is a RequestFn
+  : never;
 
 type ToProxyFn<K extends string, T extends HandlerFn> = T extends (
   ...args: any
@@ -49,32 +83,21 @@ type ToProxyFn<K extends string, T extends HandlerFn> = T extends (
   : never;
 
 export type ToProxy<
-  T extends HandlerNode,
-  K extends string
-> = RequestFn extends T
-  ? {}
-  : T extends HandlerFn
+  T extends ProxyHandlerRecord | HandlerFn,
+  K extends string = never
+> = T extends HandlerFn
   ? ToProxyFn<K, T>
-  : T extends HandlerRecord
+  : T extends ProxyHandlerRecord
   ? {
-      -readonly [Key in keyof T as Key extends
-        | typeof ProxySymbol.private
-        | typeof ProxySymbol.cache
-        ? never
-        : T[Key] extends []
-        ? never
-        : Key]: ToProxy<T[Key], Key extends string ? Key : never>;
+      -readonly [Key in keyof T]: ToProxy<
+        T[Key],
+        Key extends string ? Key : never
+      >;
     }
-  : T extends []
-  ? {}
-  : T extends [HandlerFn, ...HandlerFn[]][]
-  ? T[0] // we assume every handler is equivalent
-  : T extends (HandlerRecord | RequestFn)[]
-  ? UnionToProxy<Flatten<Exclude<T[number], Function>>, K> // we assume every function is a RequestFn
   : never;
 
-export interface Handlers extends HandlerRecord {}
-export interface Injectables extends InjectableRecord {}
+export interface Handlers extends ProxyHandlerRecord {}
+export interface Injectables extends ProxyInjectableRecord {}
 
 export type ProxyPayload<TValue = unknown> = {
   path: (string | symbol)[];
@@ -141,7 +164,7 @@ export const getRequestType = () => {
   return ctx.type;
 };
 
-export function createProxyObject(
+export function createProxy(
   callback: (request: ProxyRequest) => unknown
 ): unknown {
   const create = (payload?: ProxyPayload) => {
@@ -186,15 +209,14 @@ export function createProxyObject(
   return create(undefined);
 }
 
-export function proxy<T extends keyof ToProxy<Handlers, never>>(
+export function proxy<T extends keyof Handlers>(
   prefix: T
-): ToProxy<Handlers, never>[T];
-export function proxy<T extends HandlerNode = Handlers>(): ToProxy<T, never>;
-export function proxy<T extends keyof Handlers | HandlerRecord>(prefix?: T) {
-  const obj = createProxyObject((request) => request) as ToProxy<
-    HandlerRecord,
-    never
-  >;
+): ToProxy<Handlers>[T];
+export function proxy<T extends ProxyHandlerRecord = Handlers>(): ToProxy<T>;
+export function proxy<T extends keyof Handlers | ProxyHandlerRecord>(
+  prefix?: T
+) {
+  const obj = createProxy((request) => request) as T;
   return prefix ? obj[prefix as keyof typeof obj] : obj;
 }
 
