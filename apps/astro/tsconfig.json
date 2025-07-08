@@ -1,10 +1,39 @@
 {
   "extends": "astro/tsconfigs/strict",
-  "include": [".astro/types.d.ts", "**/*"],
   "exclude": ["dist"],
   "compilerOptions": {
     "jsx": "react-jsx",
     "jsxImportSource": "react",
     "baseUrl": "."
-  }
+  },
+  "include": [
+    ".astro/types.d.ts",
+    "src/islands/**/*",
+    "src/pages/**/*",
+    "src/middleware.ts",
+    "worker-configuration.d.ts"
+  ],
+  "references": [
+    {
+      "path": "src/features/cart"
+    },
+    {
+      "path": "src/features/catalog"
+    },
+    {
+      "path": "src/features/checkout"
+    },
+    {
+      "path": "src/shared/core"
+    },
+    {
+      "path": "src/shared/models"
+    },
+    {
+      "path": "src/shared/ui"
+    },
+    {
+      "path": "src/shared/utils"
+    }
+  ]
 }

@@ -1,70 +1,36 @@
 import { createSignalCache } from "@nanokit/proxy-signals";
 import { catalogQueries } from "../application/catalog-queries";
-import {
-  Inject,
-  proxy,
-  type HandlerNode,
-  type InjectableRecord,
-  type ToProxy,
-} from "@nanokit/proxy";
+import { Inject, type HandlerNode, type InferHandlers } from "@nanokit/proxy";
+import { injectables } from "./injectables";
 
 const cache = createSignalCache();
-
-const injectables = {} as const satisfies InjectableRecord;
-
-type LocalInjectables = typeof injectables;
-
-declare module "@nanokit/proxy" {
-  interface Injectables extends LocalInjectables {}
-}
 
 const domainEvents = {
   cartDomainEvents: {},
 };
 
 export const handlers = {
-  catalogQueries: [catalogQueries, () => {}],
-  catalogIntegrationQueries: {},
+  catalogQueries,
   [Inject.private]: [injectables, domainEvents],
   [Inject.cache]: cache,
 } as const satisfies HandlerNode;
 
-type ProxyHandlers = ToProxy<typeof handlers, never>;
-
-declare module "@nanokit/proxy" {
-  interface Handlers extends ProxyHandlers {}
-}
-
-// integration events others have defined (in /integration)
-// these are dispatched by this module
-// therefore we need their handlers to be provided
-export type ConsumedIntegrations = {
-  cartIntegrationEvents: {};
-  checkoutIntegrationEvents: {};
-};
-
-// interceptors I have defined (in /interceptors)
-export type ConsumedInterceptors = {
-  catalogIntegrationQueries: {};
-};
-
 // this is imported by other modules
-export const integrationEvents = {
-  catalogIntegrationEvents: {},
-  [Inject.private]: handlers,
-  [Inject.cache]: cache,
-} as const satisfies HandlerNode;
-
-// this is imported by another module
-export const cartInterceptors = {
+export const cartIntegrations = {
+  cartIntegrationEvents: {},
   cartIntegrationQueries: {},
   [Inject.private]: handlers,
   [Inject.cache]: cache,
 } as const satisfies HandlerNode;
 
 // this is imported by another module
-export const checkoutInterceptors = {
+export const checkoutIntegrations = {
+  checkoutIntegrationEvents: {},
   checkoutIntegrationQueries: {},
   [Inject.private]: handlers,
   [Inject.cache]: cache,
 } as const satisfies HandlerNode;
+
+declare module "@nanokit/proxy" {
+  interface Handlers extends InferHandlers<typeof handlers> {}
+}

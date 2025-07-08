@@ -1,3 +1,9 @@
+import { Inject } from "@nanokit/proxy";
+import { ProductRepository } from "../domain/product";
+
 export const cartQueries = {
-  getCart: () => {},
+  getCartItems: async () => {
+    const products = Inject(ProductRepository);
+    return Array.from(products.values());
+  },
 };

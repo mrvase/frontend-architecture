@@ -1,0 +1,25 @@
+{
+  "extends": "../../../tsconfig.json",
+  "compilerOptions": {
+    "composite": true,
+    "noEmit": false,
+    "emitDeclarationOnly": true,
+    "declaration": true,
+    "declarationDir": "./dist-types"
+  },
+  "include": ["**/*"],
+  "references": [
+    {
+      "path": "../../shared/core"
+    },
+    {
+      "path": "../../shared/models"
+    },
+    {
+      "path": "../../shared/ui"
+    },
+    {
+      "path": "../../shared/utils"
+    }
+  ]
+}
