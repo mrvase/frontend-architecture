@@ -1,17 +1,21 @@
 import {
-  FormError,
-  FormInterrupt,
+  type FormError,
+  type FormInterrupt,
   silenceError,
-  FieldConfig,
+  type FieldConfig,
   resetError,
-  JsonValue,
+  type JsonValue,
   isError,
-  FieldType,
+  type FieldType,
 } from "../types";
-import { EventBus } from "../utils/event-bus";
-import { FieldData, FieldDataMap, getNameByReverseIndex } from "./field-data";
-import { InitialValuesMap } from "./initial-values";
-import { ValidationCache } from "./validate";
+import type { EventBus } from "../utils/event-bus";
+import {
+  type FieldData,
+  type FieldDataMap,
+  getNameByReverseIndex,
+} from "./field-data";
+import type { InitialValuesMap } from "./initial-values";
+import type { ValidationCache } from "./validate";
 
 export type EmitterContext = {
   cache: ValidationCache;
@@ -21,15 +25,6 @@ export type EmitterContext = {
 };
 
 export const createValidationEmitter = (context: EmitterContext) => {
-  const handleError =
-    (silent?: boolean) => (result: FormError | FormInterrupt | undefined) => {
-      if (isError(result)) {
-        const error = silent ? silenceError(result) : result;
-        context.errors.dispatch(error);
-      }
-      return result;
-    };
-
   const resetFragmentErrors = (
     field: FieldConfig<FieldType, any>,
     data: FieldData
@@ -66,7 +61,15 @@ export const createValidationEmitter = (context: EmitterContext) => {
 
     const value = formData.get(data.name) as JsonValue;
 
-    context.cache.validate(value, field, data).then(handleError(silent));
+    const handleError = (result: FormError | FormInterrupt | undefined) => {
+      if (isError(result)) {
+        const error = silent ? silenceError(result) : result;
+        context.errors.dispatch(error);
+      }
+      return result;
+    };
+
+    context.cache.validate(value, field, data).then(handleError);
   };
 
   return validateField;

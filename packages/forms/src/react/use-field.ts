@@ -4,9 +4,9 @@ import {
   useLayoutEffect,
   useMemo,
   useCallback,
-  SyntheticEvent,
+  type SyntheticEvent,
 } from "react";
-import { FieldConfig, FieldType, FormTypes } from "../types";
+import type { FieldConfig, FieldType, FormTypes } from "../types";
 import { FormFragmentContext } from "./form-fragment-context";
 import { createValidationEmitter } from "../core/emitter";
 

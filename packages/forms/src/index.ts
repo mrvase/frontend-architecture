@@ -8,4 +8,5 @@ export type {
   FieldType,
   InferData,
   InferType,
+  Shape,
 } from "./types";

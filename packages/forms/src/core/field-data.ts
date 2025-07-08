@@ -1,10 +1,10 @@
 import {
-  FragmentConfig,
+  type FragmentConfig,
   isFragmentConfig,
-  FieldConfig,
+  type FieldConfig,
   $options,
-  AnyConfig,
-  Shape,
+  type AnyConfig,
+  type Shape,
 } from "../types";
 
 export type ConfigName = string & { brand: "ConfigName" };

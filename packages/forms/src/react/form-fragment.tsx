@@ -1,5 +1,5 @@
 import { useContext, useMemo } from "react";
-import {
+import type {
   FragmentConfig,
   InferType,
   InferData,

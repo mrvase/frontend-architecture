@@ -1,10 +1,10 @@
 import {
-  JsonValue,
-  AnyConfig,
-  FieldConfig,
+  type JsonValue,
+  type AnyConfig,
+  type FieldConfig,
   isFragmentConfig,
   $options,
-  FieldType,
+  type FieldType,
 } from "../types";
 
 export type InitialValuesMap = Map<FieldConfig<any, any>, JsonValue>;

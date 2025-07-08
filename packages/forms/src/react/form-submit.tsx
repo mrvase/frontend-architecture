@@ -1,16 +1,16 @@
 import { useContext, useLayoutEffect } from "react";
 import { getFieldData } from "../core/field-data";
 import {
-  FragmentConfig,
-  InferType,
-  FieldConfig,
-  JsonValue,
+  type FragmentConfig,
+  type InferType,
+  type FieldConfig,
+  type JsonValue,
   isInterrupt,
   isError,
-  InferData,
+  type InferData,
   isFieldConfig,
 } from "../types";
-import { FormBoundaryContext, SubmitHandler } from "./form-boundary";
+import { FormBoundaryContext, type SubmitHandler } from "./form-boundary";
 import { FormFragmentContext } from "./form-fragment-context";
 
 export function FormSubmitPlugin<T extends FragmentConfig<any, any>>({

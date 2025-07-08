@@ -1,29 +1,29 @@
 import {
-  JsonValue,
-  FormError,
-  FormInterrupt,
-  AnyConfig,
-  CoerceOutput,
+  type JsonValue,
+  type FormError,
+  type FormInterrupt,
+  type AnyConfig,
+  type CoerceOutput,
   interrupt,
   isFragmentConfig,
-  FieldConfig,
-  FragmentConfig,
-  Shape,
+  type FieldConfig,
+  type FragmentConfig,
+  type Shape,
   isError,
   isInterrupt,
   $options,
-  FieldType,
+  type FieldType,
 } from "../types";
 import { orderedJsonStringify } from "../utils/json-stringify";
-import { NestedMap } from "../utils/nested-map";
+import type { NestedMap } from "../utils/nested-map";
 import {
   createResolvablePromise,
-  ResolvablePromise,
+  type ResolvablePromise,
 } from "../utils/resolvable-promise";
 import {
-  ConfigName,
+  type ConfigName,
   extendName,
-  FieldData,
+  type FieldData,
   getNameByReverseIndex,
 } from "./field-data";
 

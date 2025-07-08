@@ -1,15 +1,15 @@
 import {
-  FieldConfig,
-  Shape,
-  FragmentConfig,
-  JsonValue,
+  type FieldConfig,
+  type Shape,
+  type FragmentConfig,
+  type JsonValue,
   $brand,
-  CoerceOutput,
-  FormTypes,
-  InferTypeFromShape,
+  type CoerceOutput,
+  type FormTypes,
+  type InferTypeFromShape,
   $options,
-  Prettify,
-  FieldType,
+  type Prettify,
+  type FieldType,
 } from "./types";
 
 type Fragment<
@@ -49,7 +49,7 @@ type Field<
   TResult extends JsonValue = FormTypes[TType]
 > = FieldConfig<TType, TResult> & {
   coerce: <TNewResult extends JsonValue>(
-    value: (value: FormTypes[TType]) => CoerceOutput<TNewResult>
+    value: (value: TResult) => CoerceOutput<TNewResult>
   ) => Field<TType, TNewResult>;
 };
 
@@ -58,7 +58,7 @@ const createField = <
   TResult extends JsonValue = FormTypes[TType]
 >(
   type: TType,
-  coerceFn?: (value: FormTypes[TType]) => CoerceOutput<TResult>
+  coerceFn?: (value: never) => CoerceOutput<TResult>
 ): Field<TType, TResult> => {
   return {
     coerce: (value) => createField(type, value),

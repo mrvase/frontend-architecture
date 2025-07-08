@@ -84,7 +84,7 @@ export type FieldConfig<
   type: TType;
   [$brand]: "Field";
   [$options]: {
-    coerceFn?: (value: FormTypes[TType]) => CoerceOutput<TResult>;
+    coerceFn?: (value: never) => CoerceOutput<TResult>;
   };
 };
 

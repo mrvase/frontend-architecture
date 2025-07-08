@@ -1,12 +1,12 @@
 import {
   createContext,
-  FormEvent,
+  type FormEvent,
   useCallback,
   useContext,
   useMemo,
-  useTransition,
+  useState,
 } from "react";
-import { createEventBus, EventBus } from "../utils/event-bus";
+import { createEventBus, type EventBus } from "../utils/event-bus";
 
 export type SubmitResult =
   | { type: "error" }
@@ -28,15 +28,17 @@ const isAllSuccesses = (
 };
 
 export function FormBoundary({ children }: { children: React.ReactNode }) {
-  const [isPending, startTransition] = useTransition();
+  // const [isPending, startTransition] = useTransition();
+  const [isPending, setIsPending] = useState(false);
   const submitters: SubmitEventBus = useMemo(() => createEventBus(), []);
 
   const handleSubmit = useCallback(async (ev: FormEvent<HTMLFormElement>) => {
     const form = ev.currentTarget;
 
-    startTransition(async () => {
-      ev.preventDefault();
+    ev.preventDefault();
+    setIsPending(true);
 
+    try {
       const results = await Promise.all(
         submitters.dispatch(new FormData(form))
       );
@@ -46,7 +48,9 @@ export function FormBoundary({ children }: { children: React.ReactNode }) {
       }
 
       await Promise.all(results.map((el) => el.submit()));
-    });
+    } finally {
+      setIsPending(false);
+    }
   }, []);
 
   const context = useMemo(
