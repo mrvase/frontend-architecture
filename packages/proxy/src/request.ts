@@ -19,6 +19,8 @@ export type ProxyRequest<T = unknown> = {
   type: string[];
   payload: unknown[];
   [RETURN_TYPE]: T;
+  select: <U>(callback: (value: T) => U) => ProxyRequest<U>;
+  transforms?: ((value: unknown) => unknown)[];
 };
 
 export type ProxyEvent<T extends Record<string, unknown>> = {

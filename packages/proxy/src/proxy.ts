@@ -84,11 +84,19 @@ export type ProxyPayload<TValue = unknown> = {
 
 export const createProxyRequest = <T>(
   type: (string | symbol)[],
-  payload: unknown[] = []
+  payload: unknown[] = [],
+  transforms?: ((value: unknown) => unknown)[]
 ): ProxyRequest<T> => {
   return addRequestContext({
     type,
     payload,
+    select: (callback) => {
+      return createProxyRequest(type, payload, [
+        ...(transforms ?? []),
+        callback as (value: unknown) => unknown,
+      ]);
+    },
+    ...(transforms ? { transforms } : {}),
   } as ProxyRequest<T>);
 };
 

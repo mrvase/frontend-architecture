@@ -49,6 +49,14 @@ const invoke = <T>(context: RequestContext<T>) => {
     return Promise.all(promises).then(() => {});
   }
 
+  const evaluateTransforms = (value: unknown) => {
+    const transforms = context.request.transforms;
+    if (!transforms) {
+      return value;
+    }
+    return transforms.reduce((acc, fn) => fn(acc), value);
+  };
+
   const handlerFn = handlerFns[0];
 
   if (!handlerFn) {
@@ -62,12 +70,16 @@ const invoke = <T>(context: RequestContext<T>) => {
   if (context.type === "query" && context.options?.noCache) {
     // cache.subscribe(context.request);
     return trackRequestContext(context, () =>
-      handlerFn.fn(...context.request.payload)
+      evaluateTransforms(handlerFn.fn(...context.request.payload))
     );
   }
 
   return handlerFn.cache[context.type](context.request, () =>
-    trackRequestContext(context, () => handlerFn.fn(...context.request.payload))
+    evaluateTransforms(
+      trackRequestContext(context, () =>
+        handlerFn.fn(...context.request.payload)
+      )
+    )
   );
 };
 
