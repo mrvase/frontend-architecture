@@ -10,8 +10,9 @@ import type { FieldConfig, FieldType, FieldTypes } from "../types";
 import { FormFragmentContext } from "./form-fragment-context";
 import { createValidationEmitter } from "../core/emitter";
 
-export const useField = <T extends FieldType>(config: FieldConfig<T, any>) => {
+export const useField = <T extends FieldType>(config: FieldConfig<T>) => {
   const [error, setError] = useState<string | null>(null);
+  const [isValidating, setIsValidating] = useState(false);
 
   const context = useContext(FormFragmentContext);
 
@@ -67,7 +68,16 @@ export const useField = <T extends FieldType>(config: FieldConfig<T, any>) => {
 
       const data = getFormData(target);
 
-      emitValidation(data, config, silent);
+      const t = setTimeout(() => {
+        if (!silent) {
+          setIsValidating(true);
+        }
+      }, 50);
+
+      void emitValidation(data, config, silent).finally(() => {
+        clearTimeout(t);
+        setIsValidating(false);
+      });
     },
     [context, config, emitValidation]
   );
@@ -76,7 +86,7 @@ export const useField = <T extends FieldType>(config: FieldConfig<T, any>) => {
     (el: HTMLElement | null) => {
       if (el) {
         const data = getFormData(el);
-        emitValidation(data, config, true);
+        void emitValidation(data, config, true);
       }
     },
     [emitValidation]
@@ -87,6 +97,7 @@ export const useField = <T extends FieldType>(config: FieldConfig<T, any>) => {
     name,
     initialValue,
     error,
+    isValidating,
     trigger,
     triggerSilent: useCallback(
       (ev: Event | SyntheticEvent) => {

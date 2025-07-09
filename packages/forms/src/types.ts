@@ -12,7 +12,7 @@ export type JsonValue = JsonPrimitive | JsonObject | JsonArray;
 export type FormError<T extends string | null = string> = {
   [$brand]: "Error";
   message: T | null;
-  subscriptions: FieldConfig<any, any>[];
+  subscriptions: FieldConfig[];
   silent?: boolean;
 };
 
@@ -79,7 +79,7 @@ export type FieldType = keyof FieldTypes;
 
 export type FieldConfig<
   TType extends FieldType = FieldType,
-  TResult extends JsonValue = FieldTypes[TType]
+  TResult extends JsonValue = any
 > = {
   type: TType;
   [$brand]: "Field";
@@ -88,14 +88,11 @@ export type FieldConfig<
   };
 };
 
-export type Shape = Record<
-  string,
-  FieldConfig<any, any> | FragmentConfig<any, any>
->;
+export type Shape = Record<string, FieldConfig<any> | FragmentConfig<any>>;
 
 export type FragmentConfig<
   TShape extends Shape = Shape,
-  TResult extends JsonValue = InferFormDataFromShape<TShape>
+  TResult extends JsonValue = any
 > = {
   [$brand]: "Fragment";
   [$options]: {
@@ -113,11 +110,11 @@ export type Prettify<T> = {
 } & {};
 
 export type InferFormStateFromShape<T extends Shape> = {
-  [K in keyof T]: T[K] extends FieldConfig<infer TType, any>
+  [K in keyof T]: T[K] extends FieldConfig<infer TType>
     ? TType extends FieldType
       ? FieldTypes[TType]
       : never
-    : T[K] extends FragmentConfig<infer TShape, any>
+    : T[K] extends FragmentConfig<infer TShape>
     ? Prettify<Partial<InferFormStateFromShape<TShape>>>
     : never;
 };
@@ -136,14 +133,10 @@ export type InferFormDataFromShape<T extends Shape> = {
 export type InferFormData<T extends FragmentConfig<any, any>> =
   T extends FragmentConfig<any, infer TResult> ? Prettify<TResult> : never;
 
-export const isFragmentConfig = (
-  value: unknown
-): value is FragmentConfig<Shape, any> => {
+export const isFragmentConfig = (value: unknown): value is FragmentConfig => {
   return isBrand(value, "Fragment");
 };
 
-export const isFieldConfig = (
-  value: unknown
-): value is FieldConfig<FieldType, any> => {
+export const isFieldConfig = (value: unknown): value is FieldConfig => {
   return isBrand(value, "Field");
 };

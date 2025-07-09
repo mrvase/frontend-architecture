@@ -46,10 +46,7 @@ export function FormSubmitPlugin<T extends FragmentConfig<any, any>>({
       throw new Error("Invalid config");
     }
 
-    const validateField = async (
-      formData: FormData,
-      field: FieldConfig<any, any>
-    ) => {
+    const validateField = async (formData: FormData, field: FieldConfig) => {
       const data = fieldData.get(field);
       if (!data) throw new Error("Invalid field");
 

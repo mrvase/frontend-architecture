@@ -6,7 +6,6 @@ import {
   resetError,
   type JsonValue,
   isError,
-  type FieldType,
 } from "../types";
 import type { EventBus } from "../utils/event-bus";
 import {
@@ -25,10 +24,7 @@ export type EmitterContext = {
 };
 
 export const createValidationEmitter = (context: EmitterContext) => {
-  const resetFragmentErrors = (
-    field: FieldConfig<FieldType, any>,
-    data: FieldData
-  ) => {
+  const resetFragmentErrors = (field: FieldConfig, data: FieldData) => {
     data.fragments.forEach((fragmentConfig, index) => {
       const name = getNameByReverseIndex(data.name, index);
       const current = context.cache.getCurrentValue(fragmentConfig, name);
@@ -48,7 +44,7 @@ export const createValidationEmitter = (context: EmitterContext) => {
 
   const validateField = async (
     formData: FormData,
-    field: FieldConfig<any, any>,
+    field: FieldConfig,
     silent?: boolean
   ) => {
     const data = context.fieldData.get(field);
@@ -69,7 +65,7 @@ export const createValidationEmitter = (context: EmitterContext) => {
       return result;
     };
 
-    context.cache.validate(value, field, data).then(handleError);
+    await context.cache.validate(value, field, data).then(handleError);
   };
 
   return validateField;

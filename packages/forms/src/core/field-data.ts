@@ -53,14 +53,14 @@ export const getFieldData = (config: FragmentConfig<Shape, any>) => {
 };
 
 type FragmentNode = {
-  fragment: FragmentConfig<any, any>;
+  fragment: FragmentConfig<any>;
   parent: FragmentNode | null;
   sibling: FragmentNode | FieldNode | null;
   child: FragmentNode | FieldNode | null;
 };
 
 type FieldNode = {
-  field: FieldConfig<any, any>;
+  field: FieldConfig<any>;
   parent: FragmentNode | null;
   sibling: FragmentNode | FieldNode | null;
 };

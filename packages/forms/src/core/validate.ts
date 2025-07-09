@@ -53,7 +53,7 @@ export function getCacheKey(obj: JsonValue): ValueKey {
 const UNWRAP = Symbol("UNWRAP");
 
 export const createProxy = () => {
-  const subscriptions: FieldConfig<FieldType, any>[] = [];
+  const subscriptions: FieldConfig[] = [];
 
   const create = (value: JsonValue, config: FragmentConfig) => {
     return new Proxy(value as object, {
@@ -295,7 +295,7 @@ export const createValidationCache = () => {
 
   const validateField = async (
     value: JsonValue,
-    config: FieldConfig<FieldType, any>,
+    config: FieldConfig,
     data: FieldData
   ): Promise<FormError | FormInterrupt | undefined> => {
     const result = await cachedValidate(value, config, data.name);

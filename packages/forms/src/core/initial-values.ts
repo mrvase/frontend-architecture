@@ -4,16 +4,15 @@ import {
   type FieldConfig,
   isFragmentConfig,
   $options,
-  type FieldType,
 } from "../types";
 
-export type InitialValuesMap = Map<FieldConfig<any, any>, JsonValue>;
+export type InitialValuesMap = Map<FieldConfig, JsonValue>;
 
 export function getInitialValues(
   initialValues: Record<string, JsonValue>,
   config: AnyConfig
 ) {
-  const map = new Map<FieldConfig<FieldType, any>, JsonValue>();
+  const map = new Map<FieldConfig, JsonValue>();
 
   const recursive = (
     obj: JsonValue,
@@ -40,8 +39,8 @@ export function getInitialValues(
 
 export const mergeMaps = (
   ...[map1, ...maps]: [
-    Map<FieldConfig<FieldType, any>, JsonValue>,
-    ...Map<FieldConfig<FieldType, any>, JsonValue>[]
+    Map<FieldConfig, JsonValue>,
+    ...Map<FieldConfig, JsonValue>[]
   ]
 ) => {
   const next = new Map(map1);
