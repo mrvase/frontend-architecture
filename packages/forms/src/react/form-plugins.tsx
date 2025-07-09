@@ -2,15 +2,19 @@ import { useContext, useLayoutEffect } from "react";
 import { getFieldData } from "../core/field-data";
 import {
   type FragmentConfig,
-  type InferType,
+  type InferFormData,
   type FieldConfig,
   type JsonValue,
   isInterrupt,
   isError,
-  type InferData,
+  type InferFormState,
   isFieldConfig,
 } from "../types";
-import { FormBoundaryContext, type SubmitHandler } from "./form-boundary";
+import {
+  FormBoundaryContext,
+  type ChangeHandler,
+  type SubmitHandler,
+} from "./form-boundary";
 import { FormFragmentContext } from "./form-fragment-context";
 
 export function FormSubmitPlugin<T extends FragmentConfig<any, any>>({
@@ -18,10 +22,13 @@ export function FormSubmitPlugin<T extends FragmentConfig<any, any>>({
   onSubmit,
 }: {
   config: T;
-  onSubmit?: (value: InferType<T>, data: InferData<T>) => void;
+  onSubmit?: (
+    value: InferFormData<T>,
+    data: InferFormState<T>
+  ) => Promise<void> | void;
 }) {
   const formCtx = useContext(FormBoundaryContext);
-  const fragmentCtx = useContext(FormFragmentContext)!;
+  const fragmentCtx = useContext(FormFragmentContext);
 
   if (!formCtx || !fragmentCtx) {
     throw new Error(
@@ -91,14 +98,44 @@ export function FormSubmitPlugin<T extends FragmentConfig<any, any>>({
         type: "success",
         submit: () =>
           onSubmit?.(
-            fragmentValue as InferType<T>,
-            fragmentData as InferData<T>
+            fragmentValue as InferFormData<T>,
+            fragmentData as InferFormState<T>
           ),
       };
     };
 
     return registerSubmitHandler(submitHandler);
   }, [registerSubmitHandler, config, onSubmit]);
+
+  return null;
+}
+
+export function FormChangePlugin({
+  onChange,
+}: {
+  onChange?: () => Promise<void> | void;
+}) {
+  const formCtx = useContext(FormBoundaryContext);
+
+  if (!formCtx) {
+    throw new Error(
+      "FormSubmitPlugin must be used within a FormBoundary and a FormFragment"
+    );
+  }
+
+  const { registerChangeHandler } = formCtx;
+
+  useLayoutEffect(() => {
+    if (!onChange) {
+      return;
+    }
+
+    const changeHandler: ChangeHandler = async () => {
+      onChange?.();
+    };
+
+    return registerChangeHandler(changeHandler);
+  }, [registerChangeHandler, onChange]);
 
   return null;
 }

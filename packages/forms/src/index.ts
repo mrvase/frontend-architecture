@@ -4,9 +4,9 @@ export { error } from "./types";
 export type {
   FieldConfig,
   FragmentConfig,
-  FormTypes,
+  FieldTypes,
   FieldType,
-  InferData,
-  InferType,
+  InferFormState,
+  InferFormData,
   Shape,
 } from "./types";

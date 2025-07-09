@@ -71,15 +71,15 @@ export const isInterrupt = (value: unknown): value is FormInterrupt => {
   return isBrand(value, "Interrupt");
 };
 
-export type FormTypes = {
+export interface FieldTypes {
   string: string | null;
   number: string | null;
-};
-export type FieldType = keyof FormTypes;
+}
+export type FieldType = keyof FieldTypes;
 
 export type FieldConfig<
   TType extends FieldType = FieldType,
-  TResult extends JsonValue = FormTypes[TType]
+  TResult extends JsonValue = FieldTypes[TType]
 > = {
   type: TType;
   [$brand]: "Field";
@@ -95,12 +95,12 @@ export type Shape = Record<
 
 export type FragmentConfig<
   TShape extends Shape = Shape,
-  TResult extends JsonValue = InferTypeFromShape<TShape>
+  TResult extends JsonValue = InferFormDataFromShape<TShape>
 > = {
   [$brand]: "Fragment";
   [$options]: {
     shape: TShape;
-    coerceFn?: (value: InferTypeFromShape<TShape>) => CoerceOutput<TResult>;
+    coerceFn?: (value: InferFormDataFromShape<TShape>) => CoerceOutput<TResult>;
   };
 };
 
@@ -112,28 +112,28 @@ export type Prettify<T> = {
   [K in keyof T]: T[K];
 } & {};
 
-export type InferDataFromShape<T extends Shape> = {
+export type InferFormStateFromShape<T extends Shape> = {
   [K in keyof T]: T[K] extends FieldConfig<infer TType, any>
     ? TType extends FieldType
-      ? FormTypes[TType]
+      ? FieldTypes[TType]
       : never
     : T[K] extends FragmentConfig<infer TShape, any>
-    ? Prettify<Partial<InferDataFromShape<TShape>>>
+    ? Prettify<Partial<InferFormStateFromShape<TShape>>>
     : never;
 };
-export type InferData<T extends FragmentConfig<any, any>> =
+export type InferFormState<T extends FragmentConfig<any, any>> =
   T extends FragmentConfig<infer Shape, any>
-    ? Prettify<Partial<InferDataFromShape<Shape>>>
+    ? Prettify<Partial<InferFormStateFromShape<Shape>>>
     : never;
 
-export type InferTypeFromShape<T extends Shape> = {
+export type InferFormDataFromShape<T extends Shape> = {
   [K in keyof T]: T[K] extends FieldConfig<any, infer TResult>
     ? TResult
     : T[K] extends FragmentConfig<any, infer TResult>
     ? TResult
     : never;
 };
-export type InferType<T extends FragmentConfig<any, any>> =
+export type InferFormData<T extends FragmentConfig<any, any>> =
   T extends FragmentConfig<any, infer TResult> ? Prettify<TResult> : never;
 
 export const isFragmentConfig = (

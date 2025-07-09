@@ -13,11 +13,14 @@ export type SubmitResult =
   | { type: "success"; submit: () => Promise<void> | void };
 
 type SubmitEventBus = EventBus<FormData, Promise<SubmitResult>>;
+type ChangeEventBus = EventBus<FormData, void>;
 
 export type SubmitHandler = Parameters<SubmitEventBus["registerHandler"]>[0];
+export type ChangeHandler = Parameters<ChangeEventBus["registerHandler"]>[0];
 
 export const FormBoundaryContext = createContext<{
   registerSubmitHandler: SubmitEventBus["registerHandler"];
+  registerChangeHandler: ChangeEventBus["registerHandler"];
   isPending: boolean;
 } | null>(null);
 
@@ -27,42 +30,62 @@ const isAllSuccesses = (
   return results.every((result) => result.type === "success");
 };
 
-export function FormBoundary({ children }: { children: React.ReactNode }) {
+export function FormBoundary({
+  children,
+  onSubmit,
+  onChange,
+  ...props
+}: React.ComponentProps<"form">) {
   // const [isPending, startTransition] = useTransition();
   const [isPending, setIsPending] = useState(false);
-  const submitters: SubmitEventBus = useMemo(() => createEventBus(), []);
+  const submitEventBus: SubmitEventBus = useMemo(() => createEventBus(), []);
+  const changeEventBus: ChangeEventBus = useMemo(() => createEventBus(), []);
 
-  const handleSubmit = useCallback(async (ev: FormEvent<HTMLFormElement>) => {
-    const form = ev.currentTarget;
+  const handleSubmit = useCallback(
+    async (ev: FormEvent<HTMLFormElement>) => {
+      const form = ev.currentTarget;
 
-    ev.preventDefault();
-    setIsPending(true);
+      ev.preventDefault();
+      setIsPending(true);
 
-    try {
-      const results = await Promise.all(
-        submitters.dispatch(new FormData(form))
-      );
+      try {
+        const [_, ...results] = await Promise.all([
+          onSubmit?.(ev),
+          ...submitEventBus.dispatch(new FormData(form)),
+        ]);
 
-      if (!isAllSuccesses(results)) {
-        return;
+        if (!isAllSuccesses(results)) {
+          return;
+        }
+
+        await Promise.all(results.map((el) => el.submit()));
+      } finally {
+        setIsPending(false);
       }
+    },
+    [submitEventBus, onSubmit]
+  );
 
-      await Promise.all(results.map((el) => el.submit()));
-    } finally {
-      setIsPending(false);
-    }
-  }, []);
+  const handleChange = useCallback(
+    (ev: FormEvent<HTMLFormElement>) => {
+      const form = ev.currentTarget;
+      changeEventBus.dispatch(new FormData(form));
+      onChange?.(ev);
+    },
+    [changeEventBus, onChange]
+  );
 
   const context = useMemo(
     () => ({
       isPending,
-      registerSubmitHandler: submitters.registerHandler,
+      registerSubmitHandler: submitEventBus.registerHandler,
+      registerChangeHandler: changeEventBus.registerHandler,
     }),
-    [isPending, submitters]
+    [isPending, submitEventBus, changeEventBus]
   );
 
   return (
-    <form onSubmit={handleSubmit}>
+    <form onSubmit={handleSubmit} onChange={handleChange} {...props}>
       <FormBoundaryContext.Provider value={context}>
         {children}
       </FormBoundaryContext.Provider>

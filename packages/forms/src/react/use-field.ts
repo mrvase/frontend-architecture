@@ -6,7 +6,7 @@ import {
   useCallback,
   type SyntheticEvent,
 } from "react";
-import type { FieldConfig, FieldType, FormTypes } from "../types";
+import type { FieldConfig, FieldType, FieldTypes } from "../types";
 import { FormFragmentContext } from "./form-fragment-context";
 import { createValidationEmitter } from "../core/emitter";
 
@@ -38,7 +38,7 @@ export const useField = <T extends FieldType>(config: FieldConfig<T, any>) => {
 
   const initialValue = useMemo(() => {
     return (context.initialValues?.get(config) ?? undefined) as
-      | Exclude<FormTypes[T], null>
+      | Exclude<FieldTypes[T], null>
       | undefined;
   }, [context, config]);
 
