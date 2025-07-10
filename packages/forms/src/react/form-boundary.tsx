@@ -1,6 +1,7 @@
 import {
   createContext,
   type FormEvent,
+  forwardRef,
   useCallback,
   useContext,
   useMemo,
@@ -30,12 +31,10 @@ const isAllSuccesses = (
   return results.every((result) => result.type === "success");
 };
 
-export function FormBoundary({
-  children,
-  onSubmit,
-  onChange,
-  ...props
-}: React.ComponentProps<"form">) {
+export const FormBoundary = forwardRef<
+  HTMLFormElement,
+  React.ComponentProps<"form">
+>(({ children, onSubmit, onChange, ...props }, ref) => {
   // const [isPending, startTransition] = useTransition();
   const [isPending, setIsPending] = useState(false);
   const submitEventBus: SubmitEventBus = useMemo(() => createEventBus(), []);
@@ -85,13 +84,13 @@ export function FormBoundary({
   );
 
   return (
-    <form onSubmit={handleSubmit} onChange={handleChange} {...props}>
+    <form ref={ref} onSubmit={handleSubmit} onChange={handleChange} {...props}>
       <FormBoundaryContext.Provider value={context}>
         {children}
       </FormBoundaryContext.Provider>
     </form>
   );
-}
+});
 
 export const useFormStatus = () => {
   const form = useContext(FormBoundaryContext);
