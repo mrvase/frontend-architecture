@@ -231,7 +231,7 @@ export const createValidationCache = () => {
     return handleResult(coercedValue);
   };
 
-  const cachedValidate = async (
+  const cachedValidate = (
     value: JsonValue,
     config: AnyConfig,
     name: ConfigName
@@ -273,32 +273,35 @@ export const createValidationCache = () => {
       configCache.cache.set(cacheKey, { value: cachedValue });
     }
 
-    const result = await cachedValue;
-
-    if (isError(result) || isInterrupt(result)) {
-      return result;
-    }
+    return Promise.resolve(cachedValue).then((result) => {
+      if (isError(result) || isInterrupt(result)) {
+        return result;
+      }
+    });
   };
 
-  const validateFragment = async (
+  const validateFragment = (
     config: FragmentConfig<Shape, any>,
     name: ConfigName
   ): Promise<FormError | FormInterrupt | undefined> => {
     const value = buildFragmentValue(config, name);
 
     if (!value) {
-      return undefined;
+      return Promise.resolve(undefined);
     }
 
-    return await cachedValidate(value, config, name);
+    return cachedValidate(value, config, name);
   };
 
   const validateField = async (
     value: JsonValue,
     config: FieldConfig,
-    data: FieldData
+    data: FieldData,
+    syncContext: <T>(fn: () => T) => T = (fn) => fn()
   ): Promise<FormError | FormInterrupt | undefined> => {
-    const result = await cachedValidate(value, config, data.name);
+    const result = await syncContext(() =>
+      cachedValidate(value, config, data.name)
+    );
 
     if (isError(result) || isInterrupt(result)) {
       return result;
@@ -307,7 +310,7 @@ export const createValidationCache = () => {
     let i = 0;
     for (const child of data.fragments) {
       const name = getNameByReverseIndex(data.name, i);
-      const result = await validateFragment(child, name);
+      const result = await syncContext(() => validateFragment(child, name));
       if (result) {
         return result;
       }

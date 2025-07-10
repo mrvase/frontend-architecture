@@ -9,12 +9,14 @@ import {
 import type { FieldConfig, FieldType, FieldTypes } from "../types";
 import { FormFragmentContext } from "./form-fragment-context";
 import { createValidationEmitter } from "../core/emitter";
+import { SyncContext } from "./sync-context";
 
 export const useField = <T extends FieldType>(config: FieldConfig<T>) => {
   const [error, setError] = useState<string | null>(null);
   const [isValidating, setIsValidating] = useState(false);
 
   const context = useContext(FormFragmentContext);
+  const syncContext = useContext(SyncContext);
 
   if (!context) {
     throw new Error("useField must be used within a FormFragment");
@@ -44,8 +46,12 @@ export const useField = <T extends FieldType>(config: FieldConfig<T>) => {
   }, [context, config]);
 
   const emitValidation = useMemo(
-    () => createValidationEmitter(context),
-    [context]
+    () =>
+      createValidationEmitter({
+        ...context,
+        syncContext: syncContext ?? undefined,
+      }),
+    [context, syncContext]
   );
 
   const getFormData = useCallback((target: HTMLElement) => {

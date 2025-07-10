@@ -16,6 +16,7 @@ import {
   type SubmitHandler,
 } from "./form-boundary";
 import { FormFragmentContext } from "./form-fragment-context";
+import { SyncContext } from "./sync-context";
 
 export function FormSubmitPlugin<T extends FragmentConfig<any, any>>({
   config,
@@ -29,6 +30,7 @@ export function FormSubmitPlugin<T extends FragmentConfig<any, any>>({
 }) {
   const formCtx = useContext(FormBoundaryContext);
   const fragmentCtx = useContext(FormFragmentContext);
+  const syncContext = useContext(SyncContext);
 
   if (!formCtx || !fragmentCtx) {
     throw new Error(
@@ -50,7 +52,12 @@ export function FormSubmitPlugin<T extends FragmentConfig<any, any>>({
       const data = fieldData.get(field);
       if (!data) throw new Error("Invalid field");
 
-      return cache.validate(formData.get(data.name) as JsonValue, field, data);
+      return cache.validate(
+        formData.get(data.name) as JsonValue,
+        field,
+        data,
+        syncContext ?? undefined
+      );
     };
 
     const submitHandler: SubmitHandler = async (data) => {
@@ -102,7 +109,7 @@ export function FormSubmitPlugin<T extends FragmentConfig<any, any>>({
     };
 
     return registerSubmitHandler(submitHandler);
-  }, [registerSubmitHandler, config, onSubmit]);
+  }, [registerSubmitHandler, config, onSubmit, syncContext]);
 
   return null;
 }

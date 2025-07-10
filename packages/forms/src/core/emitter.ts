@@ -23,7 +23,9 @@ export type EmitterContext = {
   initialValues: InitialValuesMap | undefined;
 };
 
-export const createValidationEmitter = (context: EmitterContext) => {
+export const createValidationEmitter = (
+  context: EmitterContext & { syncContext?: <T>(fn: () => T) => T }
+) => {
   const resetFragmentErrors = (field: FieldConfig, data: FieldData) => {
     data.fragments.forEach((fragmentConfig, index) => {
       const name = getNameByReverseIndex(data.name, index);
@@ -65,7 +67,9 @@ export const createValidationEmitter = (context: EmitterContext) => {
       return result;
     };
 
-    await context.cache.validate(value, field, data).then(handleError);
+    await context.cache
+      .validate(value, field, data, context.syncContext)
+      .then(handleError);
   };
 
   return validateField;

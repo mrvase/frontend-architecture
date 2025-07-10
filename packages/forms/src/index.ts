@@ -1,8 +1,9 @@
 export { f } from "./builder";
 
-export { error } from "./types";
+export { error, isError } from "./types";
 export type {
   FieldConfig,
+  FormError,
   FragmentConfig,
   FieldTypes,
   FieldType,
