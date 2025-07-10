@@ -20,8 +20,8 @@ export function FormFragment<T extends FragmentConfig<any, any>>({
   onChange,
   initialValues,
 }: {
-  children: React.ReactNode;
   config: T;
+  children?: React.ReactNode;
   onSubmit?: (
     value: InferFormData<T>,
     data: InferFormState<T>
