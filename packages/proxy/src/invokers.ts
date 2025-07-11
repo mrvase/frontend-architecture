@@ -1,5 +1,6 @@
 import type { ProxyRequestCache } from "./cache";
 import {
+  getHandlersContext,
   getRequestContext,
   trackRequestContext,
   type RequestContext,
@@ -15,10 +16,12 @@ import { getSyncTransactionContext, maybeTransaction } from "./transaction";
 import { type ProxyRequest, type RequestType } from "./request";
 
 const invoke = <T>(context: RequestContext<T>) => {
-  const handlerFns = getHandlers(
-    context.request,
-    context.handlers,
-    Boolean(context.parentRequestId)
+  const handlerFns = trackRequestContext(context, () =>
+    getHandlers(
+      context.request,
+      context.handlers,
+      Boolean(context.parentRequestId)
+    )
   );
 
   if (context.type === "dispatch") {
@@ -37,13 +40,13 @@ const invoke = <T>(context: RequestContext<T>) => {
     const promises: Promise<void>[] = [];
 
     for (const [cache, fns] of grouped) {
-      promises.push(
-        cache.dispatch(context.request, () =>
-          trackRequestContext(context, () => {
-            return fns.map((fn) => fn(...context.request.payload));
-          })
-        )
-      );
+      const invokeAll = () => {
+        return trackRequestContext(context, () =>
+          fns.map((fn) => fn(...context.request.payload))
+        );
+      };
+
+      promises.push(cache.dispatch(context.request, invokeAll));
     }
 
     return Promise.all(promises).then(() => {});
@@ -67,20 +70,18 @@ const invoke = <T>(context: RequestContext<T>) => {
     );
   }
 
-  if (context.type === "query" && context.options?.noCache) {
-    // cache.subscribe(context.request);
+  const invokeFirst = () => {
     return trackRequestContext(context, () =>
       evaluateTransforms(handlerFn.fn(...context.request.payload))
     );
+  };
+
+  if (context.type === "query" && context.options?.noCache) {
+    // cache.subscribe(context.request);
+    return invokeFirst();
   }
 
-  return handlerFn.cache[context.type](context.request, () =>
-    evaluateTransforms(
-      trackRequestContext(context, () =>
-        handlerFn.fn(...context.request.payload)
-      )
-    )
-  );
+  return handlerFn.cache[context.type](context.request, invokeFirst);
 };
 
 export type RequestLog = {
@@ -104,7 +105,7 @@ export const registerRequestLogListener = (listener: RequestLogListener) => {
   };
 };
 
-export const createInvokers = (handlersFromArg?: HandlerNode) => {
+export const createInvokers = (handlers?: HandlerNode) => {
   const getNextRequestContext = <T>({
     type,
     request,
@@ -113,20 +114,22 @@ export const createInvokers = (handlersFromArg?: HandlerNode) => {
     request: ProxyRequest<T>;
   }): RequestContext<T> => {
     const context = getRequestContext(request);
+    const handlersContext = getHandlersContext(request);
 
     const transaction = context?.transaction ?? getSyncTransactionContext();
     const options = { ...context?.options, ...getOptionsContext() };
 
-    const handlers = [context?.handlers, handlersFromArg].filter(
-      (el) => el !== undefined
-    );
+    const nextHandlers = [
+      context?.handlers ?? handlersContext?.handlers,
+      handlers,
+    ].filter((el) => el !== undefined);
 
     return {
       type,
       request,
       requestId: Math.random().toString(16).slice(2, 10),
       parentRequestId: context?.requestId ?? null,
-      handlers,
+      handlers: nextHandlers,
       transaction,
       options,
     };
@@ -183,20 +186,20 @@ export const createInvokers = (handlersFromArg?: HandlerNode) => {
   };
 
   const invalidate = (...type: [string, ...string[]] | [ProxyRequest]) => {
-    const handlers = getRequestContext()?.handlers ?? handlersFromArg ?? [];
+    const nextHandlers = getRequestContext()?.handlers ?? handlers ?? [];
 
     if (typeof type[0] === "object") {
-      const { cache } = getFirstHandler(type[0].type, handlers);
+      const { cache } = getFirstHandler(type[0].type, nextHandlers);
       cache?.invalidate(type[0]);
     } else {
-      const { cache } = getFirstHandler(type as string[], handlers);
+      const { cache } = getFirstHandler(type as string[], nextHandlers);
       cache?.invalidate(type as string[]);
     }
   };
 
   const cache = <T>(request: ProxyRequest<T>, value: T) => {
-    const handlers = getRequestContext()?.handlers ?? handlersFromArg ?? [];
-    const { cache } = getFirstHandler(request.type, handlers);
+    const nextHandlers = getRequestContext()?.handlers ?? handlers ?? [];
+    const { cache } = getFirstHandler(request.type, nextHandlers);
 
     cache?.set(request, value);
   };

@@ -66,3 +66,50 @@ export function trackRequestContext<T>(
     CurrentRequestContext = prevContext;
   }
 }
+
+export type HandlersContext = {
+  handlers: HandlerNode;
+};
+
+const HANDLERS_CONTEXT = Symbol("HANDLERS_CONTEXT");
+
+type LoadedHandlersRequest = ProxyRequest<any> & {
+  [HANDLERS_CONTEXT]: HandlersContext | undefined;
+};
+
+export function addHandlersContext<T extends RequestValue>(
+  request: ProxyRequest<T>,
+  context?: HandlersContext
+): ProxyRequest<T> {
+  return Object.assign(request, {
+    [HANDLERS_CONTEXT]:
+      context ?? // this is first so we can override context
+      getHandlersContext() ??
+      (request as LoadedHandlersRequest)[HANDLERS_CONTEXT],
+  }) satisfies LoadedHandlersRequest;
+}
+
+let CurrentHandlersContext: HandlersContext | undefined = undefined;
+
+export function getHandlersContext(
+  request?: ProxyRequest
+): HandlersContext | undefined {
+  return (
+    CurrentHandlersContext ??
+    (request as LoadedHandlersRequest)?.[HANDLERS_CONTEXT] ??
+    undefined
+  );
+}
+
+export function trackHandlersContext<T>(
+  context: HandlersContext | undefined,
+  fn: () => T
+): T {
+  const prevContext = CurrentHandlersContext;
+  CurrentHandlersContext = context;
+  try {
+    return fn();
+  } finally {
+    CurrentHandlersContext = prevContext;
+  }
+}
