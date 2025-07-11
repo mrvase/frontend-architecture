@@ -92,8 +92,10 @@ export function FormSubmitPlugin<T extends FragmentConfig<any, any>>({
       if (
         fragmentValue instanceof Promise ||
         isError(fragmentValue) ||
-        isInterrupt(fragmentValue) ||
-        fragmentValue === undefined
+        isInterrupt(fragmentValue)
+        // || fragmentValue === undefined
+        // ^ by not having this, we allow onSubmit's without any associated fields
+        //   (for side effects)
       ) {
         throw new Error("Invalid config");
       }
