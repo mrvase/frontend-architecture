@@ -5,23 +5,14 @@ import {
   trackRequestContext,
   type RequestContext,
 } from "./context";
-import {
-  getFirstHandler,
-  getHandlers,
-  type HandlerFn,
-  type HandlerNode,
-} from "./handlers";
+import { getFirstHandler, getHandlers, type HandlerFn, type HandlerNode } from "./handlers";
 import { getOptionsContext } from "./options";
 import { getSyncTransactionContext, maybeTransaction } from "./transaction";
-import { type ProxyRequest, type RequestType } from "./request";
+import { type ProxyRequest, type RequestType, type RequestValue } from "./request";
 
-const invoke = <T>(context: RequestContext<T>) => {
+const invoke = <T extends RequestValue>(context: RequestContext<T>) => {
   const handlerFns = trackRequestContext(context, () =>
-    getHandlers(
-      context.request,
-      context.handlers,
-      Boolean(context.parentRequestId)
-    )
+    getHandlers(context.request, context.handlers, Boolean(context.parentRequestId))
   );
 
   if (context.type === "dispatch") {
@@ -41,9 +32,7 @@ const invoke = <T>(context: RequestContext<T>) => {
 
     for (const [cache, fns] of grouped) {
       const invokeAll = () => {
-        return trackRequestContext(context, () =>
-          fns.map((fn) => fn(...context.request.payload))
-        );
+        return trackRequestContext(context, () => fns.map((fn) => fn(...context.request.payload)));
       };
 
       promises.push(cache.dispatch(context.request, invokeAll));
@@ -52,21 +41,19 @@ const invoke = <T>(context: RequestContext<T>) => {
     return Promise.all(promises).then(() => {});
   }
 
-  const evaluateTransforms = (value: unknown) => {
+  const evaluateTransforms = (value: RequestValue): T => {
     const transforms = context.request.transforms;
     if (!transforms) {
-      return value;
+      return value as T;
     }
-    return transforms.reduce((acc, fn) => fn(acc), value);
+    return transforms.reduce((acc, fn) => fn(acc), value) as T;
   };
 
   const handlerFn = handlerFns[0];
 
   if (!handlerFn) {
     throw new Error(
-      `No handlers found for: ${context.request.type
-        .map((el) => el.toString())
-        .join(".")}`
+      `No handlers found for: ${context.request.type.map((el) => el.toString()).join(".")}`
     );
   }
 
@@ -106,7 +93,7 @@ export const registerRequestLogListener = (listener: RequestLogListener) => {
 };
 
 export const createInvokers = (handlers?: HandlerNode) => {
-  const getNextRequestContext = <T>({
+  const getNextRequestContext = <T extends RequestValue>({
     type,
     request,
   }: {
@@ -119,10 +106,9 @@ export const createInvokers = (handlers?: HandlerNode) => {
     const transaction = context?.transaction ?? getSyncTransactionContext();
     const options = { ...context?.options, ...getOptionsContext() };
 
-    const nextHandlers = [
-      context?.handlers ?? handlersContext?.handlers,
-      handlers,
-    ].filter((el) => el !== undefined);
+    const nextHandlers = [context?.handlers ?? handlersContext?.handlers, handlers].filter(
+      (el) => el !== undefined
+    );
 
     return {
       type,
@@ -135,12 +121,12 @@ export const createInvokers = (handlers?: HandlerNode) => {
     };
   };
 
-  const query = <T>(request: ProxyRequest<T>) => {
+  const query = <T extends RequestValue>(request: ProxyRequest<T>) => {
     const context = getNextRequestContext({ type: "query", request });
     return invoke(context) as T;
   };
 
-  const mutate = <T>(request: ProxyRequest<T>) => {
+  const mutate = <T extends RequestValue>(request: ProxyRequest<T>) => {
     const context = getNextRequestContext({ type: "mutate", request });
 
     pushRequestLog({
@@ -153,7 +139,7 @@ export const createInvokers = (handlers?: HandlerNode) => {
     return maybeTransaction(() => invoke(context), request) as T;
   };
 
-  const dispatch = <T>(request: ProxyRequest<T>) => {
+  const dispatch = <T extends RequestValue>(request: ProxyRequest<T>) => {
     const context = getNextRequestContext({ type: "dispatch", request });
 
     pushRequestLog({
@@ -170,7 +156,7 @@ export const createInvokers = (handlers?: HandlerNode) => {
     }
   };
 
-  const redispatch = <T>(prefix: string) => {
+  const redispatch = (prefix: string) => {
     const request = getRequestContext()?.request;
 
     if (!request) {
@@ -197,16 +183,23 @@ export const createInvokers = (handlers?: HandlerNode) => {
     }
   };
 
-  const cache = <T>(request: ProxyRequest<T>, value: T) => {
+  const setCache = <T extends RequestValue>(request: ProxyRequest<T>, value: T) => {
     const nextHandlers = getRequestContext()?.handlers ?? handlers ?? [];
     const { cache } = getFirstHandler(request.type, nextHandlers);
 
     cache?.set(request, value);
   };
 
-  return { query, mutate, dispatch, redispatch, invalidate, cache };
+  return { query, mutate, dispatch, redispatch, invalidate, setCache };
 };
 
-export const globalInvokers = createInvokers();
-
 export type Invokers = ReturnType<typeof createInvokers>;
+export type Query = Invokers["query"];
+export type Mutate = Invokers["mutate"];
+export type Dispatch = Invokers["dispatch"];
+export type Invalidate = Invokers["invalidate"];
+export type SetCache = Invokers["setCache"];
+
+export const invokers = createInvokers();
+
+export const { query, mutate, dispatch, redispatch, invalidate, setCache } = invokers;

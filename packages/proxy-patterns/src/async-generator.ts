@@ -1,4 +1,6 @@
-export function createPushableAsyncGenerator<T>() {
+import type { JsonValue } from "@nanokit/proxy";
+
+export function createPushableAsyncGenerator<T extends JsonValue | void>() {
   let queue: T[] = [];
   let pendingResolvers: ((value: IteratorResult<T>) => void)[] = [];
   let isDone = false;

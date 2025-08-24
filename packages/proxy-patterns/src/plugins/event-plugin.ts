@@ -8,16 +8,11 @@ import { EventsSymbol } from "../events";
 import { type Repository } from "../repository";
 import { defaultPlugin } from "./default";
 
-export const eventPlugin = (
-  options: { eventPrefix?: string | symbol } = {}
-) => {
+export const eventPlugin = (options: { eventPrefix?: string | symbol } = {}) => {
   type TKey = string;
   type TValue = unknown;
 
-  const create = <T extends Repository<any, any>>(
-    map: T,
-    context?: RequestContext
-  ): T => {
+  const create = <T extends Repository<any, any>>(map: T, context?: RequestContext): T => {
     return {
       ...defaultPlugin()(map),
       get: (key: TKey) => map.get(key),
@@ -40,11 +35,8 @@ export const eventPlugin = (
         }
         return this;
       },
-      [ProxySymbol.onInject]<T>(payload: ProxyPayload<T>) {
-        return create(
-          map[ProxySymbol.onInject]?.(payload) ?? map,
-          payload.context
-        );
+      [ProxySymbol.onInject](payload: ProxyPayload) {
+        return create(map[ProxySymbol.onInject]?.(payload) ?? map, payload.context);
       },
     };
   };

@@ -7,20 +7,23 @@ type JsonPrimitive = string | number | boolean | null;
 export type JsonValue = JsonPrimitive | JsonObject | JsonArray;
 /* */
 
-export type MaybePromise<T> = T | Promise<T>;
-
-export type RequestValue = MaybePromise<JsonValue | void>;
+export type RequestArgument = ArrayBuffer | JsonValue | undefined;
+export type RequestValue =
+  | JsonValue
+  | void
+  | Promise<JsonValue | void>
+  | AsyncIterable<JsonValue | void>;
 
 export type RequestType = "query" | "mutate" | "dispatch";
 
 export declare const RETURN_TYPE: unique symbol;
 
-export type ProxyRequest<T = unknown> = {
+export type ProxyRequest<T extends RequestValue = RequestValue> = {
   type: string[];
-  payload: unknown[];
+  payload: RequestArgument[];
   [RETURN_TYPE]: T;
-  select: <U>(callback: (value: T) => U) => ProxyRequest<U>;
-  transforms?: ((value: unknown) => unknown)[];
+  select: <U extends RequestValue>(callback: (value: T) => U) => ProxyRequest<U>;
+  transforms?: ((value: RequestValue) => RequestValue)[];
 };
 
 export type ProxyEvent<T extends Record<string, unknown>> = {

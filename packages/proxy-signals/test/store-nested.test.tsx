@@ -1,6 +1,6 @@
 import { it, expect } from "vitest";
 import "@testing-library/jest-dom/vitest";
-import { proxy, ProxySymbol, query } from "@nanokit/proxy";
+import { Inject } from "@nanokit/proxy";
 import { createSignalCache } from "../src";
 import { HandlersProvider, StoreProvider, useStore } from "../src/react";
 import { render, screen } from "@testing-library/react";
@@ -15,21 +15,21 @@ const outerHandlers = {
   [Outer]: {
     getValue: () => "hello",
   },
-  [ProxySymbol.cache]: cacheOuter,
+  [Inject.cache]: cacheOuter,
 };
 
 const handlers = {
   [Store]: {
     // query from another cache
-    getValuePrivate: () => query(outer.getValue()),
+    getValuePrivate: () => Inject.query(outer.getValue()),
     // query itself
-    getValue: () => query(store.getValuePrivate()).split(" ")[0],
+    getValue: () => Inject.query(store.getValuePrivate()).split(" ")[0],
   },
-  [ProxySymbol.cache]: cacheStore,
+  [Inject.cache]: cacheStore,
 };
 
-const outer = proxy<typeof outerHandlers>()[Outer];
-const store = proxy<typeof handlers>()[Store];
+const outer = Inject.proxy<typeof outerHandlers>()[Outer];
+const store = Inject.proxy<typeof handlers>()[Store];
 
 function Component() {
   const value = useStore(store.getValue());

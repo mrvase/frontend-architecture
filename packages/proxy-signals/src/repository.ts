@@ -4,13 +4,9 @@ import { ReactiveExtended } from "./signals/signals-extended";
 import type { Repository } from "@nanokit/proxy-patterns/repository";
 import { defaultPlugin } from "@nanokit/proxy-patterns/plugins/default";
 
-export type MapKey<T extends Map<any, any>> = T extends Map<infer K, any>
-  ? K
-  : never;
+export type MapKey<T extends Map<any, any>> = T extends Map<infer K, any> ? K : never;
 
-export type MapValue<T extends Map<any, any>> = T extends Map<any, infer V>
-  ? V
-  : never;
+export type MapValue<T extends Map<any, any>> = T extends Map<any, infer V> ? V : never;
 
 export const signalPlugin =
   () =>
@@ -34,9 +30,7 @@ export const signalPlugin =
           let signal = signals.get(key);
           if (!signal) {
             // subscribe so that when the signal is set, the parent is updated
-            signal = new ReactiveExtended(
-              () => undefined as TValue | undefined
-            );
+            signal = new ReactiveExtended(() => undefined as TValue | undefined);
             signals.set(key, signal);
           }
           return signal.get(parent);
@@ -46,10 +40,7 @@ export const signalPlugin =
           if (signal) {
             signal.set(() => value);
           } else {
-            signals.set(
-              key,
-              new ReactiveExtended<TValue | undefined>(() => value)
-            );
+            signals.set(key, new ReactiveExtended<TValue | undefined>(() => value));
           }
           map.set(key, value);
           sizeSignal.set(() => map.size);
@@ -74,9 +65,7 @@ export const signalPlugin =
           map.clear();
           sizeSignal.set(() => map.size);
         },
-        forEach(
-          callbackfn: (value: TValue, key: TKey, map: Map<TKey, TValue>) => void
-        ) {
+        forEach(callbackfn: (value: TValue, key: TKey, map: Map<TKey, TValue>) => void) {
           // subscribe to all
 
           sizeSignal.get();
@@ -136,24 +125,18 @@ export const signalPlugin =
           return this.entries();
         },
         [Symbol.toStringTag]: "SignalRepository",
-        [ProxySymbol.onInject]<T>(payload: ProxyPayload<T>) {
+        [ProxySymbol.onInject](payload: ProxyPayload) {
           const nextMap = map[ProxySymbol.onInject]?.(payload) ?? map;
 
           if (!payload.context) {
             return create(nextMap, parent);
           }
 
-          const { cache } = getFirstHandler(
-            payload.context.request.type,
-            payload.context.handlers
-          );
+          const { cache } = getFirstHandler(payload.context.request.type, payload.context.handlers);
 
           const newParent = cache.getCachedData?.(payload.context.request);
 
-          return create(
-            nextMap,
-            newParent instanceof ReactiveExtended ? newParent : parent
-          );
+          return create(nextMap, newParent instanceof ReactiveExtended ? newParent : parent);
         },
       } satisfies Repository<any, any> as T;
     };

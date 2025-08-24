@@ -9,24 +9,16 @@ type InferRepositoryValue<T extends Repository<any, any>> = ReturnType<
   ? V
   : never;
 
-export type ParsedKeyRepository<
-  TKey,
-  TValue,
-  T extends Repository<any, any>
-> = Pick<T, typeof Symbol.toStringTag | "clear" | "size" | "values"> & {
+export type ParsedKeyRepository<TKey, TValue, T extends Repository<any, any>> = Pick<
+  T,
+  typeof Symbol.toStringTag | "clear" | "size" | "values"
+> & {
   get(key: TKey): ReturnType<T["get"]>;
   has(key: TKey): boolean;
-  set(
-    key: TKey,
-    value: Parameters<T["set"]>[1]
-  ): ParsedKeyRepository<TKey, TValue, T>;
+  set(key: TKey, value: Parameters<T["set"]>[1]): ParsedKeyRepository<TKey, TValue, T>;
   delete(key: TKey): boolean;
   forEach(
-    callbackfn: (
-      value: TValue,
-      key: TKey,
-      map: ParsedKeyRepository<TKey, TValue, T>
-    ) => void,
+    callbackfn: (value: TValue, key: TKey, map: ParsedKeyRepository<TKey, TValue, T>) => void,
     thisArg?: any
   ): void;
   keys(): MapIterator<TKey>;
@@ -84,7 +76,7 @@ export const parseKeyPlugin = <TKey, TKeySerialized extends string>(options: {
       [Symbol.iterator]() {
         return this.entries();
       },
-      [ProxySymbol.onInject]<T>(payload: ProxyPayload<T>) {
+      [ProxySymbol.onInject](payload: ProxyPayload) {
         return create(map[ProxySymbol.onInject]?.(payload) ?? map);
       },
     } satisfies ParsedKeyRepository<TKey, InferRepositoryValue<T>, T>;

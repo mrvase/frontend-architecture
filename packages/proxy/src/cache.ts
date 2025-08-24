@@ -1,11 +1,11 @@
-import type { ProxyRequest } from "./request";
+import type { ProxyRequest, RequestValue } from "./request";
 
 export type ProxyRequestCache<TCachedValue = unknown> = {
-  query: <T>(request: ProxyRequest<T>, invoke: () => T) => T;
-  mutate: <T>(request: ProxyRequest<T>, invoke: () => T) => T;
-  dispatch: <T>(request: ProxyRequest<T>, invoke: () => T[]) => Promise<void>;
+  query: <T extends RequestValue>(request: ProxyRequest<T>, invoke: () => T) => T;
+  mutate: <T extends RequestValue>(request: ProxyRequest<T>, invoke: () => T) => T;
+  dispatch: <T extends RequestValue>(request: ProxyRequest<T>, invoke: () => T[]) => Promise<void>;
   invalidate: (type: (string | symbol)[] | ProxyRequest) => void;
-  set: <T>(request: ProxyRequest<T>, value: T) => void;
+  set: <T extends RequestValue>(request: ProxyRequest<T>, value: T) => void;
   getCachedData?: (request: ProxyRequest) => TCachedValue | undefined;
 };
 

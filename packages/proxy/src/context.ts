@@ -1,5 +1,5 @@
 import type { HandlerNode } from "./handlers";
-import type { ProxyRequest, RequestType } from "./request";
+import type { ProxyRequest, RequestType, RequestValue } from "./request";
 
 export type RequestTransaction<
   TAttributes extends Record<string, unknown> = Record<string, unknown>
@@ -14,7 +14,7 @@ export type RequestOptions = {
   noCache?: boolean;
 };
 
-export type RequestContext<T = unknown> = {
+export type RequestContext<T extends RequestValue = RequestValue> = {
   type: RequestType;
   request: ProxyRequest<T>;
   requestId: string;
@@ -30,7 +30,7 @@ type LoadedRequest = ProxyRequest<any> & {
   [REQUEST_CONTEXT]: RequestContext | undefined;
 };
 
-export function addRequestContext<T>(
+export function addRequestContext<T extends RequestValue>(
   request: ProxyRequest<T>,
   context?: RequestContext
 ): ProxyRequest<T> {
@@ -44,20 +44,11 @@ export function addRequestContext<T>(
 
 let CurrentRequestContext: RequestContext | undefined = undefined;
 
-export function getRequestContext(
-  request?: ProxyRequest
-): RequestContext | undefined {
-  return (
-    CurrentRequestContext ??
-    (request as LoadedRequest)?.[REQUEST_CONTEXT] ??
-    undefined
-  );
+export function getRequestContext(request?: ProxyRequest): RequestContext | undefined {
+  return CurrentRequestContext ?? (request as LoadedRequest)?.[REQUEST_CONTEXT] ?? undefined;
 }
 
-export function trackRequestContext<T>(
-  context: RequestContext | undefined,
-  fn: () => T
-): T {
+export function trackRequestContext<T>(context: RequestContext | undefined, fn: () => T): T {
   const prevContext = CurrentRequestContext;
   CurrentRequestContext = context;
   try {
@@ -91,20 +82,13 @@ export function addHandlersContext<T extends RequestValue>(
 
 let CurrentHandlersContext: HandlersContext | undefined = undefined;
 
-export function getHandlersContext(
-  request?: ProxyRequest
-): HandlersContext | undefined {
+export function getHandlersContext(request?: ProxyRequest): HandlersContext | undefined {
   return (
-    CurrentHandlersContext ??
-    (request as LoadedHandlersRequest)?.[HANDLERS_CONTEXT] ??
-    undefined
+    CurrentHandlersContext ?? (request as LoadedHandlersRequest)?.[HANDLERS_CONTEXT] ?? undefined
   );
 }
 
-export function trackHandlersContext<T>(
-  context: HandlersContext | undefined,
-  fn: () => T
-): T {
+export function trackHandlersContext<T>(context: HandlersContext | undefined, fn: () => T): T {
   const prevContext = CurrentHandlersContext;
   CurrentHandlersContext = context;
   try {

@@ -19,12 +19,14 @@ import {
 } from "react";
 import {
   createInvokers,
-  globalInvokers,
+  invokers,
   type Invokers,
   type ProxyRequest,
   type HandlerNode,
   type HandlerRecord,
   ProxySymbol,
+  type RequestValue,
+  type JsonValue,
 } from "@nanokit/proxy";
 import { ReactiveExtended } from "./signals/signals-extended";
 import { getKey } from "./utils";
@@ -32,7 +34,7 @@ import { createSignalCache } from "./cache";
 
 const globalHandlers = [] as HandlerNode[];
 
-const InvokersContext = createContext<Invokers>(globalInvokers);
+const InvokersContext = createContext<Invokers>(invokers);
 const HandlersContext = createContext<HandlerNode>(globalHandlers);
 
 export function HandlersProvider({
@@ -54,9 +56,7 @@ export function HandlersProvider({
 
   return (
     <HandlersContext.Provider value={nextHandlers}>
-      <InvokersContext.Provider value={invokers}>
-        {children}
-      </InvokersContext.Provider>
+      <InvokersContext.Provider value={invokers}>{children}</InvokersContext.Provider>
     </HandlersContext.Provider>
   );
 }
@@ -85,9 +85,7 @@ export function StoreProvider({
 
   return (
     <HandlersContext.Provider value={nextHandlers}>
-      <InvokersContext.Provider value={invokers}>
-        {children}
-      </InvokersContext.Provider>
+      <InvokersContext.Provider value={invokers}>{children}</InvokersContext.Provider>
     </HandlersContext.Provider>
   );
 }
@@ -164,11 +162,39 @@ export const useHandlers = (handlers?: HandlerRecord) => {
   return null;
 };
 
-function useOnKeyUpdate<T>(
+function useOnKeyUpdate<T extends RequestValue>(
   req: ProxyRequest<T> | undefined,
-  handler: (req: ProxyRequest<T>) => void
+  handler: (req: ProxyRequest<T>) => void,
+  invokers?: Invokers
 ) {
+  const { query } = invokers ?? useContext(InvokersContext);
+
   const prevKey = useRef<string | undefined>();
+
+  const effect = useRef<ReactiveExtended<void>>();
+  if (!effect.current) {
+    effect.current = new ReactiveExtended(() => {}, true);
+  }
+
+  const onKeyUpdate = useCallback(
+    (req: ProxyRequest<T>) => {
+      effect.current?.set(() => {
+        // subscribe
+        query(req);
+        // invalidate
+        // will invalidate too often (e.g. on initialization) but uses cache underneath
+        handler(req);
+      });
+    },
+    [handler]
+  );
+
+  useEffect(() => {
+    return () => {
+      effect.current?.dispose();
+      effect.current = undefined;
+    };
+  }, []);
 
   useEffect(() => {
     if (!req) {
@@ -177,10 +203,10 @@ function useOnKeyUpdate<T>(
 
     const nextKey = getKey(req);
     if (prevKey.current !== nextKey) {
-      handler(req);
+      onKeyUpdate(req);
       prevKey.current = nextKey;
     }
-  }, [req, handler]);
+  }, [req, onKeyUpdate]);
 }
 
 const HydrateContext = createContext(new Map<string, unknown>());
@@ -194,20 +220,18 @@ export function Hydrate({
   children: React.ReactNode;
 }) {
   return (
-    <SymbolContext.Provider
-      value={useMemo(() => new Map<string, symbol>(), [])}
-    >
+    <SymbolContext.Provider value={useMemo(() => new Map<string, symbol>(), [])}>
       <HydrateContext.Provider value={data}>{children}</HydrateContext.Provider>
     </SymbolContext.Provider>
   );
 }
 
-export function useStore<T>(req: ProxyRequest<T>, invokers?: Invokers): T;
-export function useStore<T>(
+export function useStore<T extends RequestValue>(req: ProxyRequest<T>, invokers?: Invokers): T;
+export function useStore<T extends RequestValue>(
   req: ProxyRequest<T> | undefined,
   invokers?: Invokers
 ): T | undefined;
-export function useStore<T>(
+export function useStore<T extends RequestValue>(
   req: ProxyRequest<T> | undefined,
   invokers?: Invokers
 ) {
@@ -215,34 +239,13 @@ export function useStore<T>(
   const hydrateData = useContext(HydrateContext);
   const symbolRecord = useContext(SymbolContext);
 
-  const effect = useRef<ReactiveExtended<void>>();
-  if (!effect.current) {
-    effect.current = new ReactiveExtended(() => {}, true);
-  }
-
-  useEffect(() => {
-    return () => {
-      effect.current?.dispose();
-      effect.current = undefined;
-    };
-  }, []);
-
   const subscribe = useRef<() => void>();
 
-  const onKeyUpdate = useCallback(
-    (req: ProxyRequest<T>) => {
-      effect.current?.set(() => {
-        // subscribe
-        query(req);
-        // invalidate
-        // will invalidate too often (e.g. on initialization) but uses cache underneath
-        subscribe.current?.();
-      });
-    },
-    [query]
-  );
+  const onKeyUpdate = useCallback((req: ProxyRequest<T>) => {
+    subscribe.current?.();
+  }, []);
 
-  useOnKeyUpdate(req, onKeyUpdate);
+  useOnKeyUpdate(req, onKeyUpdate, invokers);
 
   const subscription = useCallback((sub: () => void) => {
     subscribe.current = sub;
@@ -270,26 +273,17 @@ export function useStore<T>(
   );
 }
 
-export function useQuery<T>(
+export function useQuery<T extends JsonValue>(
   req: ProxyRequest<Promise<T>>,
-  options?: Omit<
-    UseQueryOptions<T>,
-    "queryKey" | "queryFn" | "queryHash" | "queryKeyHashFn"
-  >
+  options?: Omit<UseQueryOptions<T>, "queryKey" | "queryFn" | "queryHash" | "queryKeyHashFn">
 ): UseQueryResult<T>;
-export function useQuery<T>(
+export function useQuery<T extends JsonValue>(
   req: ProxyRequest<Promise<T>> | undefined,
-  options?: Omit<
-    UseQueryOptions<T>,
-    "queryKey" | "queryFn" | "queryHash" | "queryKeyHashFn"
-  >
+  options?: Omit<UseQueryOptions<T>, "queryKey" | "queryFn" | "queryHash" | "queryKeyHashFn">
 ): UseQueryResult<T | undefined>;
-export function useQuery<T>(
+export function useQuery<T extends JsonValue>(
   req: ProxyRequest<Promise<T>> | undefined,
-  options?: Omit<
-    UseQueryOptions<T>,
-    "queryKey" | "queryFn" | "queryHash" | "queryKeyHashFn"
-  >
+  options?: Omit<UseQueryOptions<T>, "queryKey" | "queryFn" | "queryHash" | "queryKeyHashFn">
 ) {
   const queryClient = useQueryClient();
   const invokers = useContext(InvokersContext);
@@ -308,21 +302,17 @@ export function useQuery<T>(
 
   const onKeyUpdate = useCallback(
     (req: ProxyRequest<Promise<T>>) => {
-      effect.current?.set(() => {
-        // subscribe
-        invokers.query(req);
-        // invalidate
-        // will invalidate too often (e.g. on initialization) but uses cache underneath
-        queryClient.invalidateQueries({
-          queryKey: [...req.type, ...req.payload],
-          exact: true,
-        });
+      // invalidate
+      // will invalidate too often (e.g. on initialization) but uses cache underneath
+      queryClient.invalidateQueries({
+        queryKey: [...req.type, ...req.payload],
+        exact: true,
       });
     },
     [queryClient, invokers]
   );
 
-  useOnKeyUpdate(req, onKeyUpdate);
+  useOnKeyUpdate(req, onKeyUpdate, invokers);
 
   return useQueryBase({
     queryKey: req ? [...req.type, ...req.payload] : [],

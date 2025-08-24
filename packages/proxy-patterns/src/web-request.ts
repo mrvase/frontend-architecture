@@ -1,4 +1,9 @@
-import { createProxyRequest, getRequestType, type ProxyRequest } from "@nanokit/proxy";
+import {
+  createProxyRequest,
+  getRequestType,
+  type JsonValue,
+  type ProxyRequest,
+} from "@nanokit/proxy";
 
 export type WebRequestContext =
   | {
@@ -8,7 +13,7 @@ export type WebRequestContext =
     }
   | {
       type: "query" | "mutate" | "dispatch";
-      request: ProxyRequest<unknown>;
+      request: ProxyRequest;
     };
 
 const queryParamName = "input";
@@ -79,10 +84,10 @@ export async function getProxyRequestFromWebRequest(request: Request): Promise<W
 
     try {
       const payload = payloadStringified.map((string) =>
-        string === "undefined" ? undefined : (JSON.parse(string) as unknown)
+        string === "undefined" ? undefined : (JSON.parse(string) as JsonValue)
       );
 
-      return { type: "query", request: createProxyRequest<Promise<unknown>>(type, payload) };
+      return { type: "query", request: createProxyRequest(type, payload) };
     } catch (err) {
       console.log(err);
       return { type: "error", status: 400, statusText: "Bad request" };
@@ -99,7 +104,7 @@ export async function getProxyRequestFromWebRequest(request: Request): Promise<W
     const path = url.pathname.replace(/^\/proxy\//, "");
     const type = path.split("/");
 
-    const payload = (await request.json()) as unknown[];
+    const payload = (await request.json()) as JsonValue[];
 
     try {
       return { type: "mutate", request: createProxyRequest(type, payload) };
@@ -128,12 +133,12 @@ export async function getProxyRequestFromWebRequest(request: Request): Promise<W
 
     try {
       const payloadRest = payloadStringified.map((string) =>
-        string === "undefined" ? undefined : (JSON.parse(string) as unknown)
+        string === "undefined" ? undefined : (JSON.parse(string) as JsonValue)
       );
 
       return {
         type: "mutate",
-        request: createProxyRequest<Promise<unknown>>(type, [file, ...payloadRest]),
+        request: createProxyRequest(type, [file, ...payloadRest]),
       };
     } catch (err) {
       console.log(err);

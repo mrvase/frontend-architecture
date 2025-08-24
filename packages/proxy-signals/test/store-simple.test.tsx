@@ -1,19 +1,14 @@
 import { it, expect } from "vitest";
 import "@testing-library/jest-dom/vitest";
-import { proxy } from "@nanokit/proxy";
+import { Inject } from "@nanokit/proxy";
 import { StoreProvider, useMutate, useStore } from "../src/react";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { signalPlugin } from "../src";
-import {
-  createSingleton,
-  type Singleton,
-} from "@nanokit/proxy-patterns/singleton";
+import { createSingleton, type Singleton } from "@nanokit/proxy-patterns/singleton";
 
 const Store = "Store";
 
-const state = createSingleton<Singleton<string>>(signalPlugin(), (map) =>
-  map.set(null, "hello")
-);
+const state = createSingleton<Singleton<string>>(signalPlugin(), (map) => map.set(null, "hello"));
 
 const handlers = {
   [Store]: {
@@ -22,7 +17,7 @@ const handlers = {
   },
 };
 
-const store = proxy<typeof handlers>()[Store];
+const store = Inject.proxy<typeof handlers>()[Store];
 
 function Component() {
   const value = useStore(store.getValue());

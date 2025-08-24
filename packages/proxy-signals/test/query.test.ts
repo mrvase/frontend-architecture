@@ -1,22 +1,19 @@
-import { Inject, transaction, type InferHandlers } from "@nanokit/proxy";
+import { Inject } from "@nanokit/proxy";
 import { describe, expect, it } from "vitest";
 import { createSignalCache } from "../src";
 import { client } from "@nanokit/proxy-patterns/client";
 
-function proxy<T extends keyof InferHandlers<Handlers>>(key: T) {
+function proxy<T extends keyof Inject.InferHandlers<Handlers>>(key: T) {
   return Inject.proxy<Handlers>()[key];
 }
 function inject<T extends keyof Injectables>(key: T) {
-  return Inject<Injectables[T]>(key);
+  return Inject.inject<Injectables>()[key];
 }
 
 const Client1 = "Client1";
 const Client2 = "Client2";
 
-const createClient1 = (
-  state: { value: number },
-  counter?: { value: number }
-) => ({
+const createClient1 = (state: { value: number }, counter?: { value: number }) => ({
   getCount: async () => {
     if (counter) {
       counter.value += 1;
@@ -67,7 +64,7 @@ const createHandlers = (counter?: { value: number }) => {
   return {
     [WrapperClient]: wrapperClient,
     ...injectables,
-    [Inject.private]: injectables,
+    [Inject.internal]: injectables,
     [Inject.cache]: createSignalCache(),
   };
 };
@@ -124,7 +121,7 @@ describe("auto-invalidates", () => {
     expect(await invokers.query(wrapper.getCount())).toBe(0);
     expect(counter.value).toBe(1);
 
-    await transaction(() => {
+    await Inject.transaction(() => {
       invokers.dispatch(wrapper.increment());
     });
 
@@ -143,7 +140,7 @@ describe("auto-invalidates", () => {
 
     expect(counter.value).toBe(1);
 
-    await transaction(() => invokers.dispatch(client2.increment()));
+    await Inject.transaction(() => invokers.dispatch(client2.increment()));
 
     expect(counter.value).toBe(1);
   });
@@ -154,9 +151,9 @@ describe("auto-invalidates", () => {
     const client1 = proxy(Client1);
     const wrapper = proxy(WrapperClient);
 
-    await transaction(() => invokers.dispatch(client1.increment()));
-    await transaction(() => invokers.dispatch(client1.increment()));
-    await transaction(() => invokers.dispatch(client1.increment()));
+    await Inject.transaction(() => invokers.dispatch(client1.increment()));
+    await Inject.transaction(() => invokers.dispatch(client1.increment()));
+    await Inject.transaction(() => invokers.dispatch(client1.increment()));
 
     expect(await invokers.query(wrapper.getCount())).toBe(3);
   });

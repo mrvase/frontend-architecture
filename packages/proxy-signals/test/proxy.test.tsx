@@ -2,11 +2,8 @@ import { it, expect, beforeEach } from "vitest";
 import "@testing-library/jest-dom/vitest";
 import { cleanup, render, screen } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { type InferHandlers, Inject } from "@nanokit/proxy";
-import {
-  createRepository,
-  type Repository,
-} from "@nanokit/proxy-patterns/repository";
+import { Inject } from "@nanokit/proxy";
+import { createRepository, type Repository } from "@nanokit/proxy-patterns/repository";
 import { createSignalCache, signalPlugin } from "../src";
 import { HandlersProvider, useQuery, useStore } from "../src/react";
 import { client } from "@nanokit/proxy-patterns/client";
@@ -25,7 +22,7 @@ function proxy<T extends keyof Handlers>(key: T) {
   return Inject.proxy<Handlers>()[key];
 }
 function inject<T extends keyof Injectables>(key: T) {
-  return Inject<Injectables[T]>(key);
+  return Inject.inject<Injectables>()[key];
 }
 
 const createClient = (data = { value: 0 }) => ({
@@ -49,7 +46,7 @@ const syncStringHandlers = {
   },
   setString: (value: string) => {
     const repository = inject(Repository);
-    return repository.set("", value);
+    repository.set("", value);
   },
   getStringAsync: async () => {
     const repository = inject(Repository);
@@ -66,7 +63,7 @@ const asyncStringHandlers = {
   },
   setString: (value: string) => {
     const client = inject(Client);
-    return client.setValue(
+    client.setValue(
       {
         hello: 0,
         world: 1,
@@ -88,11 +85,7 @@ const derivedHandlers = {
       const string = proxy(StringAsync);
 
       await new Promise((res) => setTimeout(() => res(undefined), 10));
-      return (
-        (await Inject.query(string.getString())) +
-        " derived " +
-        (await client.getValue())
-      );
+      return (await Inject.query(string.getString())) + " derived " + (await client.getValue());
     },
   },
 };
@@ -106,12 +99,12 @@ const createHandlers = () => ({
   [StringSync]: syncStringHandlers,
   [StringAsync]: asyncStringHandlers,
   [Derived]: derivedHandlers,
-  [Inject.private]: createInjectables(),
+  [Inject.internal]: createInjectables(),
   [Inject.cache]: createSignalCache(),
 });
 
-type Injectables = ReturnType<typeof createInjectables>;
-type Handlers = ReturnType<typeof createHandlers>;
+type Injectables = Inject.InferInjectables<ReturnType<typeof createInjectables>>;
+type Handlers = Inject.InferHandlers<ReturnType<typeof createHandlers>>;
 
 const stringSync = proxy(StringSync);
 const stringAsync = proxy(StringAsync);

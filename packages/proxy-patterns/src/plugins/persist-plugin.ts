@@ -18,9 +18,7 @@ export const persistPlugin = <TValue = unknown>(options: {
           mapString = options.storage().getItem(options.name);
         }
 
-        const entries: [TKey, TValue][] = mapString
-          ? JSON.parse(mapString)
-          : [];
+        const entries: [TKey, TValue][] = mapString ? JSON.parse(mapString) : [];
 
         entries.forEach(([key, value]) => {
           map.set(key, value);
@@ -60,9 +58,8 @@ export const persistPlugin = <TValue = unknown>(options: {
       keys: () => getMap().keys(),
       values: () => getMap().values(),
       entries: () => getMap().entries(),
-      forEach: (
-        callbackfn: (value: TValue, key: TKey, map: Map<TKey, TValue>) => void
-      ) => getMap().forEach(callbackfn),
+      forEach: (callbackfn: (value: TValue, key: TKey, map: Map<TKey, TValue>) => void) =>
+        getMap().forEach(callbackfn),
       get size() {
         return getMap().size;
       },
@@ -72,7 +69,7 @@ export const persistPlugin = <TValue = unknown>(options: {
       get [Symbol.toStringTag]() {
         return getMap()[Symbol.toStringTag];
       },
-      [ProxySymbol.onInject]<T>(payload: ProxyPayload<T>) {
+      [ProxySymbol.onInject](payload: ProxyPayload) {
         return create(map[ProxySymbol.onInject]?.(payload) ?? map);
       },
     } satisfies Repository<any, any> as T;

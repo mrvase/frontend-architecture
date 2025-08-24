@@ -6,10 +6,7 @@ import { ProxySymbol } from "@nanokit/proxy";
 export type GcState = {
   name: string;
   time: number;
-  timeouts: Map<
-    string,
-    { timeoutId: ReturnType<typeof setTimeout>; startTime: number }
-  >;
+  timeouts: Map<string, { timeoutId: ReturnType<typeof setTimeout>; startTime: number }>;
 };
 
 type GcStateListener = (request: GcState) => void;
@@ -36,10 +33,7 @@ export const gcPlugin = (options: {
 }) => {
   type TKey = string;
   type TValue = unknown;
-  const timeouts = new Map<
-    TKey,
-    { timeoutId: ReturnType<typeof setTimeout>; startTime: number }
-  >();
+  const timeouts = new Map<TKey, { timeoutId: ReturnType<typeof setTimeout>; startTime: number }>();
   const timedOutKeys = new Set<TKey>();
 
   let gc: ((key: TKey) => void) | null = null;
@@ -116,7 +110,7 @@ export const gcPlugin = (options: {
         timedOutKeys.clear();
         return map.clear();
       },
-      [ProxySymbol.onInject]<T>(payload: ProxyPayload<T>) {
+      [ProxySymbol.onInject](payload: ProxyPayload) {
         return create(map[ProxySymbol.onInject]?.(payload) ?? map);
       },
     } satisfies Repository<any, any> as T;

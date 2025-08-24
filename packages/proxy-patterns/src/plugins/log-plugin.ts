@@ -50,10 +50,7 @@ export const logPlugin = (options: { prefix: string }) => {
   type TKey = string;
   type TValue = unknown;
 
-  const create = <T extends Repository<any, any>>(
-    map: T,
-    context?: RequestContext
-  ): T => {
+  const create = <T extends Repository<any, any>>(map: T, context?: RequestContext): T => {
     return {
       ...defaultPlugin()(map),
       set(key: TKey, value: TValue) {
@@ -97,11 +94,8 @@ export const logPlugin = (options: { prefix: string }) => {
           });
         }
       },
-      [ProxySymbol.onInject]<T>(payload: ProxyPayload<T>) {
-        return create(
-          map[ProxySymbol.onInject]?.(payload) ?? map,
-          payload.context
-        );
+      [ProxySymbol.onInject](payload: ProxyPayload) {
+        return create(map[ProxySymbol.onInject]?.(payload) ?? map, payload.context);
       },
     } satisfies Repository<any, any> as T;
   };
