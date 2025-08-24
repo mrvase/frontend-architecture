@@ -1,11 +1,11 @@
 import type { APIRoute } from "astro";
 import { getProxyRequestFromWebRequest } from "@nanokit/proxy-patterns/web-request";
 import { handleRequest } from "src/shared/core/server/request";
-import type { HandlerNode } from "@nanokit/proxy";
+import type { Inject } from "@nanokit/proxy";
 
 export const prerender = false;
 
-const handlers: HandlerNode = [];
+const handlers: Inject.HandlerNode = [];
 
 export const ALL: APIRoute = async ({ request }) => {
   const proxyRequest = await getProxyRequestFromWebRequest(request);

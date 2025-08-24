@@ -1,9 +1,9 @@
-import type { ProxyRequest } from "@nanokit/proxy";
+import type { Inject } from "@nanokit/proxy";
 
 export async function fetchIslandData(
   ...islands: {
-    prefetch: ProxyRequest[] | undefined;
-    query: <T>(request: ProxyRequest<T>) => T;
+    prefetch: Inject.ProxyRequest[] | undefined;
+    query: <T extends Inject.RequestValue>(request: Inject.ProxyRequest<T>) => T;
   }[]
 ) {
   const promises = islands.flatMap((island) => {

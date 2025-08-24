@@ -3,7 +3,9 @@ import { ProductRepository } from "../domain/product";
 
 export const cartQueries = {
   getCartItems: async () => {
-    const products = Inject(ProductRepository);
+    const { cartQueries } = Inject.requests;
+    const { [ProductRepository]: products } = Inject.injectables;
+
     return Array.from(products.values());
   },
 };

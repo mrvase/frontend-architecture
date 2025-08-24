@@ -1,4 +1,4 @@
-import type { ProxyRequest } from "@nanokit/proxy";
+import type { Inject } from "@nanokit/proxy";
 import type { GetVariables } from "./types";
 
 declare const props: unique symbol;
@@ -18,9 +18,7 @@ export const createTexts = <T extends TextRecord>(texts: ToEvaluatables<T>) => {
 };
 
 type ToEvaluatables<T extends TextRecord> = {
-  [K in keyof T]: T[K] extends TextRecord
-    ? ToEvaluatables<T[K]>
-    : T[K] | ProxyRequest<T[K]>;
+  [K in keyof T]: T[K] extends TextRecord ? ToEvaluatables<T[K]> : T[K] | Inject.ProxyRequest<T[K]>;
 };
 
 export type TextRecord = {

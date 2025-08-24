@@ -1,5 +1,5 @@
 import { createSignalCache } from "@nanokit/proxy-signals";
-import { Inject, type HandlerNode, type InferHandlers } from "@nanokit/proxy";
+import { Inject } from "@nanokit/proxy";
 import { injectables } from "./injectables";
 
 const cache = createSignalCache();
@@ -9,26 +9,26 @@ const domainEvents = {
 };
 
 export const handlers = {
-  [Inject.private]: [injectables, domainEvents],
+  [Inject.internal]: [injectables, domainEvents],
   [Inject.cache]: cache,
-} as const satisfies HandlerNode;
+} as const satisfies Inject.HandlerNode;
 
 // this is imported by other modules
 export const cartIntegrations = {
   cartIntegrationEvents: {},
   cartIntegrationQueries: {},
-  [Inject.private]: handlers,
+  [Inject.internal]: handlers,
   [Inject.cache]: cache,
-} as const satisfies HandlerNode;
+} as const satisfies Inject.HandlerNode;
 
 // this is imported by another module
 export const checkoutIntegrations = {
   checkoutIntegrationEvents: {},
   checkoutIntegrationQueries: {},
-  [Inject.private]: handlers,
+  [Inject.internal]: handlers,
   [Inject.cache]: cache,
-} as const satisfies HandlerNode;
+} as const satisfies Inject.HandlerNode;
 
 declare module "@nanokit/proxy" {
-  interface Handlers extends InferHandlers<typeof handlers> {}
+  interface Handlers extends Inject.InferHandlers<typeof handlers> {}
 }

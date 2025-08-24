@@ -3,7 +3,7 @@ import { ProductRepository } from "../domain/product";
 
 export const catalogQueries = {
   getProducts: async () => {
-    const products = Inject(ProductRepository);
+    const products = Inject.injectables[ProductRepository];
     return Array.from(products.values());
   },
 };

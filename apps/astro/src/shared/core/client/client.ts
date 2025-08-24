@@ -1,4 +1,4 @@
-import type { RequestFn } from "@nanokit/proxy";
+import type { JsonValue, RequestFn } from "@nanokit/proxy";
 import { getWebRequestFromProxyRequest } from "@nanokit/proxy-patterns/web-request";
 
 async function* getStream(response: Response): AsyncGenerator<any> {
@@ -42,7 +42,7 @@ async function* getStream(response: Response): AsyncGenerator<any> {
   }
 }
 
-function wrapMaybeAsyncIterable(promise: Promise<unknown>) {
+function wrapMaybeAsyncIterable(promise: Promise<JsonValue | void>) {
   let cached: unknown;
   let resolved = false;
 
@@ -52,25 +52,19 @@ function wrapMaybeAsyncIterable(promise: Promise<unknown>) {
     return result;
   });
 
-  const wrapped: Promise<unknown> & AsyncIterable<unknown> = {
-    then: <TResult1 = unknown, TResult2 = never>(
+  const wrapped: Promise<JsonValue | void> & AsyncIterable<JsonValue | void> = {
+    then: <TResult1 = JsonValue | void, TResult2 = never>(
       onfulfilled?:
-        | ((value: unknown) => TResult1 | PromiseLike<TResult1>)
+        | ((value: JsonValue | void) => TResult1 | PromiseLike<TResult1>)
         | null
         | undefined,
-      onrejected?:
-        | ((reason: any) => TResult2 | PromiseLike<TResult2>)
-        | null
-        | undefined
+      onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | null | undefined
     ) => {
       return nextPromise.then(onfulfilled, onrejected);
     },
 
     catch<TResult = never>(
-      onrejected?:
-        | ((reason: any) => TResult | PromiseLike<TResult>)
-        | null
-        | undefined
+      onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | null | undefined
     ) {
       return nextPromise.catch(onrejected);
     },
@@ -87,9 +81,9 @@ function wrapMaybeAsyncIterable(promise: Promise<unknown>) {
       const value = resolved ? cached : await promise;
 
       if (value && typeof value === "object" && Symbol.asyncIterator in value) {
-        yield* value as AsyncGenerator<unknown>;
+        yield* value as AsyncGenerator<JsonValue | void>;
       } else {
-        yield value;
+        yield value as JsonValue | void;
       }
     },
   };
@@ -102,9 +96,7 @@ const apiProxyRequestFn: RequestFn = (event) => {
 
   const promise = fetch(url, init).then((response) => {
     if (!response.ok) {
-      throw new Error(
-        `[${init.method} ${response.status}] ${response.statusText}`
-      );
+      throw new Error(`[${init.method} ${response.status}] ${response.statusText}`);
     }
 
     const contentType = response.headers.get("content-type");

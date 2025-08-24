@@ -1,4 +1,4 @@
-import type { InferHandlers } from "@nanokit/proxy";
+import type { Inject } from "@nanokit/proxy";
 
 // integration events I have defined (in /integration)
 // these are dispatched by this module
@@ -6,5 +6,5 @@ import type { InferHandlers } from "@nanokit/proxy";
 export type Integrations = {};
 
 declare module "@nanokit/proxy" {
-  interface Handlers extends InferHandlers<Integrations> {}
+  interface Handlers extends Inject.InferHandlers<Integrations> {}
 }

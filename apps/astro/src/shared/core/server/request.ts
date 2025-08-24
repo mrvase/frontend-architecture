@@ -4,6 +4,7 @@ import {
   transaction,
   type HandlerNode,
   type ProxyRequest,
+  type RequestValue,
 } from "@nanokit/proxy";
 import {
   createRequestCookieRepository,
@@ -33,10 +34,7 @@ export async function createRequestInjectables(
     request.headers.get("cookie") || "",
     options.secret
   );
-  const responseCookieRepository = createResponseCookieRepository(
-    repsonseHeaders,
-    options.secret
-  );
+  const responseCookieRepository = createResponseCookieRepository(repsonseHeaders, options.secret);
 
   const handlers = {
     [RequestAdapter]: {
@@ -62,17 +60,14 @@ export async function createRequestInjectables(
   return handlers;
 }
 
-export async function handleQueryRequest<T>(
+export async function handleQueryRequest<T extends RequestValue>(
   handlers: HandlerNode,
   request: Request,
   proxyRequest: ProxyRequest<T>,
   options: { secret?: string } = {}
 ) {
   const injectables = await createRequestInjectables(request, options);
-  const invokers = createInvokers([
-    handlers,
-    { [Inject.private]: injectables },
-  ]);
+  const invokers = createInvokers([handlers, { [Inject.internal]: injectables }]);
 
   try {
     const data = await transaction(() => invokers.mutate(proxyRequest));
@@ -157,24 +152,16 @@ export async function handleRequest(
     });
   }
 
-  if (
-    proxyRequest.type !== "dispatch" &&
-    !getHandlers(proxyRequest.request, handlers).length
-  ) {
+  if (proxyRequest.type !== "dispatch" && !getHandlers(proxyRequest.request, handlers).length) {
     return new Response("Not found", { status: 404 });
   }
 
   const injectables = await createRequestInjectables(request, options);
 
-  const invokers = createInvokers([
-    handlers,
-    { [Inject.private]: injectables },
-  ]);
+  const invokers = createInvokers([handlers, { [Inject.internal]: injectables }]);
 
   try {
-    const data = await transaction(() =>
-      invokers[proxyRequest.type](proxyRequest.request)
-    );
+    const data = await transaction(() => invokers[proxyRequest.type](proxyRequest.request));
 
     const status = injectables[RequestAdapter].getStatus();
     const headers = injectables[RequestAdapter].getHeaders();
@@ -207,8 +194,7 @@ export async function handleRequest(
       });
     }
 
-    let body =
-      data instanceof ReadableStream ? data : JSON.stringify(data ?? null);
+    let body = data instanceof ReadableStream ? data : JSON.stringify(data ?? null);
     return new Response(body, {
       status,
       headers,
