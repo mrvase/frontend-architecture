@@ -1,15 +1,9 @@
-import {
-  useState,
-  useContext,
-  useLayoutEffect,
-  useMemo,
-  useCallback,
-  type SyntheticEvent,
-} from "react";
+import { useState, useContext, useMemo, useCallback, type SyntheticEvent } from "react";
 import type { FieldConfig, FieldType, FieldTypes } from "../types";
 import { FormFragmentContext } from "./form-fragment-context";
 import { createValidationEmitter } from "../core/emitter";
 import { SyncContext } from "./sync-context";
+import { useLayoutEffect } from "../utils/use-layout-effect";
 
 export const useField = <T extends FieldType>(config: FieldConfig<T>) => {
   const [error, setError] = useState<string | null>(null);
@@ -67,9 +61,7 @@ export const useField = <T extends FieldType>(config: FieldConfig<T>) => {
       setError(null);
       const target = ev.currentTarget;
       if (!(target instanceof HTMLElement)) {
-        throw new Error(
-          "`trigger` must be called on an HTMLElement event handler"
-        );
+        throw new Error("`trigger` must be called on an HTMLElement event handler");
       }
 
       const data = getFormData(target);

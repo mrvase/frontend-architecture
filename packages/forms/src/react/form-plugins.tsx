@@ -1,4 +1,4 @@
-import { useContext, useLayoutEffect } from "react";
+import { useContext } from "react";
 import { getFieldData } from "../core/field-data";
 import {
   type FragmentConfig,
@@ -10,32 +10,24 @@ import {
   type InferFormState,
   isFieldConfig,
 } from "../types";
-import {
-  FormBoundaryContext,
-  type ChangeHandler,
-  type SubmitHandler,
-} from "./form-boundary";
+import { FormBoundaryContext, type ChangeHandler, type SubmitHandler } from "./form-boundary";
 import { FormFragmentContext } from "./form-fragment-context";
 import { SyncContext } from "./sync-context";
+import { useLayoutEffect } from "../utils/use-layout-effect";
 
 export function FormSubmitPlugin<T extends FragmentConfig<any, any>>({
   config,
   onSubmit,
 }: {
   config: T;
-  onSubmit?: (
-    value: InferFormData<T>,
-    data: InferFormState<T>
-  ) => Promise<void> | void;
+  onSubmit?: (value: InferFormData<T>, data: InferFormState<T>) => Promise<void> | void;
 }) {
   const formCtx = useContext(FormBoundaryContext);
   const fragmentCtx = useContext(FormFragmentContext);
   const syncContext = useContext(SyncContext);
 
   if (!formCtx || !fragmentCtx) {
-    throw new Error(
-      "FormSubmitPlugin must be used within a FormBoundary and a FormFragment"
-    );
+    throw new Error("FormSubmitPlugin must be used within a FormBoundary and a FormFragment");
   }
 
   const { registerSubmitHandler } = formCtx;
@@ -61,12 +53,8 @@ export function FormSubmitPlugin<T extends FragmentConfig<any, any>>({
     };
 
     const submitHandler: SubmitHandler = async (data) => {
-      const configs = Array.from(getFieldData(config).keys()).filter(
-        isFieldConfig
-      );
-      const results = await Promise.all(
-        Array.from(configs, (field) => validateField(data, field))
-      );
+      const configs = Array.from(getFieldData(config).keys()).filter(isFieldConfig);
+      const results = await Promise.all(Array.from(configs, (field) => validateField(data, field)));
 
       let hasErrorOrInterrupt = false;
 
@@ -103,10 +91,7 @@ export function FormSubmitPlugin<T extends FragmentConfig<any, any>>({
       return {
         type: "success",
         submit: () =>
-          onSubmit?.(
-            fragmentValue as InferFormData<T>,
-            fragmentData as InferFormState<T>
-          ),
+          onSubmit?.(fragmentValue as InferFormData<T>, fragmentData as InferFormState<T>),
       };
     };
 
@@ -116,17 +101,11 @@ export function FormSubmitPlugin<T extends FragmentConfig<any, any>>({
   return null;
 }
 
-export function FormChangePlugin({
-  onChange,
-}: {
-  onChange?: () => Promise<void> | void;
-}) {
+export function FormChangePlugin({ onChange }: { onChange?: () => Promise<void> | void }) {
   const formCtx = useContext(FormBoundaryContext);
 
   if (!formCtx) {
-    throw new Error(
-      "FormSubmitPlugin must be used within a FormBoundary and a FormFragment"
-    );
+    throw new Error("FormSubmitPlugin must be used within a FormBoundary and a FormFragment");
   }
 
   const { registerChangeHandler } = formCtx;
